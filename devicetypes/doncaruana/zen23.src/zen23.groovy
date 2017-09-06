@@ -1,7 +1,7 @@
 /**
- *  Zooz Zen23 Toggle Switch v2
+ *  Zen23
  *
- *  Date: 2017-8-31
+ *  Date: 2017-9-5
  *  Supported Command Classes
  *  
  *         Association v2
@@ -18,19 +18,21 @@
  *  
  *   Parm Size Description                                   Value
  *      1    1 Invert Switch                                 0 (Default)-Upper paddle turns light on, 1-Lower paddle turns light on
+ *      2    1 LED Indicator                                 0 (Default)-LED is on when light is OFF, 1-LED is on when light is ON
+ *      3    1 LED Disable                                   0 (Default)-LED is on based on parameter 2, 1-LED is off always
  */
 metadata {
-	definition (name: "Zooz Zen23 Toggle Switch v2", namespace: "doncaruana", author: "Don Caruana") {
+	definition (name: "Zen23", namespace: "doncaruana", author: "Don Caruana") {
 		capability "Switch"
 		capability "Polling"
 		capability "Refresh"
 		capability "Sensor"
 
-//zw:L type:1001 mfr:027A prod:B111 model:251C ver:20.15 zwv:4.05 lib:06 cc:5E,86,72,5A,73,85,59,25,27,20,70 role:05 ff:9D00 ui:9D00
+//zw:L type:1001 mfr:015D prod:0111 model:1E1C ver:20.15 zwv:4.05 lib:06 cc:5E,86,72,5A,73,85,59,25,27,20,70 role:05 ff:9D00 ui:9D00
                                                      
-	fingerprint mfr:"027A", prod:"B111", model:"251C", deviceJoinName: "Zooz Zen23 Toggle v2"
+	fingerprint mfr:"015D", prod:"0111", model:"1E1C", deviceJoinName: "Zen23"
     fingerprint deviceId:"0x1001", inClusters: "0x5E,0x59,0x85,0x70,0x5A,0x72,0x73,0x27,0x25,0x86,0x20"
-    fingerprint cc: "0x5E,0x59,0x85,0x70,0x5A,0x72,0x73,0x27,0x25,0x86,0x20", mfr:"027A", prod:"B111", model:"251C", deviceJoinName: "Zooz Zen23 Toggle v2"
+    fingerprint cc: "0x5E,0x59,0x85,0x70,0x5A,0x72,0x73,0x27,0x25,0x86,0x20", mfr:"015D", prod:"0111", model:"1E1C", deviceJoinName: "Zen23"
 	}
 
 	simulator {
@@ -52,7 +54,9 @@ metadata {
 	}
 
 	preferences {
+		input "ledIndicator", "bool", title: "LED on when light on", description: "LED will be on when light OFF if not set", required: false, defaultValue: false
 		input "invertSwitch", "bool", title: "Invert Switch", description: "Flip switch upside down", required: false, defaultValue: false
+		input "ledDisable", "bool", title: "LED Diabled", description: "Turn off LED completely", required: false, defaultValue: false
   }
 
 	tiles(scale: 2) {
@@ -92,21 +96,32 @@ private getCommandClassVersions() {
 }
 
 def installed() {
-	log.debug "installed()"
 	def cmds = []
 
 	cmds << mfrGet()
   cmds << zwave.versionV1.versionGet().format()
 	cmds << parmGet(1)
+	cmds << parmGet(2)
+	cmds << parmGet(3)
   return response(delayBetween(cmds,200))
 }
 
 def updated(){
-	log.debug "updated()"
 		def commands = []
+   	if (getDataValue("MSR") == null) {
+   		def level = 99
+		  commands << mfrGet()
+      commands << zwave.versionV1.versionGet().format()
+	    commands << zwave.basicV1.basicSet(value: level).format()
+	    commands << zwave.switchMultilevelV1.switchMultilevelGet().format()
+   	}
       //parmset takes the parameter number, it's size, and the value - in that order
+    	commands << parmSet(3, 1, [ledDisable == true ? 1 : 0])
+    	commands << parmSet(2, 1, [ledIndicator == true ? 1 : 0])
     	commands << parmSet(1, 1, [invertSwitch == true ? 1 : 0])
     	commands << parmGet(1)
+    	commands << parmGet(2)
+    	commands << parmGet(3)
 		// Device-Watch simply pings if no device events received for 32min(checkInterval)
 		sendEvent(name: "checkInterval", value: 2 * 15 * 60 + 2 * 60, displayed: false, data: [protocol: "zwave", hubHardwareId: device.hub.hardwareID])
     	return response(delayBetween(commands, 500))
@@ -137,6 +152,7 @@ def zwaveEvent(physicalgraph.zwave.commands.switchbinaryv1.SwitchBinaryReport cm
 	[name: "switch", value: cmd.value ? "on" : "off", type: "digital"]
 }	
 
+
 def zwaveEvent(physicalgraph.zwave.commands.configurationv1.ConfigurationReport cmd) {
 	def name = ""
     def value = ""
@@ -147,11 +163,20 @@ def zwaveEvent(physicalgraph.zwave.commands.configurationv1.ConfigurationReport 
             name = "topoff"
             value = reportValue == 1 ? "true" : "false"
             break
+        case 2:
+            name = "ledfollow"
+            value = reportValue == 1 ? "true" : "false"
+            break
+        case 3:
+            name = "ledoff"
+            value = reportValue == 1 ? "true" : "false"
+            break
         default:
             break
     }
 	createEvent([name: name, value: value])
 }
+
 
 def zwaveEvent(physicalgraph.zwave.commands.hailv1.Hail cmd) {
 	createEvent([name: "hail", value: "hail", descriptionText: "Switch button was pressed", displayed: false])
