@@ -15,7 +15,7 @@
  *         Switch_binary
  *         Version v2
  *         ZWavePlus Info v2
- *  
+ *  testing
  *   Parm Size Description                                   Value
  *      1    1 Invert Switch                                 0 (Default)-Upper paddle turns light on, 1-Lower paddle turns light on
  */
