@@ -8,3 +8,4 @@ metadata {
 		capability "Refresh"
 	}
 }
+//this code has no newline at the end.
