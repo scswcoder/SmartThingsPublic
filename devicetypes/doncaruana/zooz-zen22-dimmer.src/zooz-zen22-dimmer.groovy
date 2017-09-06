@@ -27,7 +27,7 @@
  *   Note2: Configuration is not officially documented as a command class for this device but it is and must be available to use parameters
  */
 metadata {
-	definition (name: "Zooz Zen22 Dimmer Switch", namespace: "doncaruana", author: "Don Caruana") {
+	definition (name: "Zooz Zen22 Dimmer", namespace: "doncaruana", author: "Don Caruana") {
 		capability "Switch Level"
 		capability "Switch"
 		capability "Polling"
