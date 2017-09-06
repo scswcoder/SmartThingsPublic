@@ -1,5 +1,5 @@
 /**
- *  Zooz Zen22 Dimmer Switch
+ *  Zooz Zen22 Dimmer Switch v2
  *
  *  Date: 2017-8-29
  *  Supported Command Classes
