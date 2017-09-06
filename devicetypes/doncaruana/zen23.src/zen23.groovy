@@ -20,7 +20,7 @@
  *      1    1 Invert Switch                                 0 (Default)-Upper paddle turns light on, 1-Lower paddle turns light on
  */
 metadata {
-	definition (name: "Zooz Zen23 Toggle Switch v2", namespace: "doncaruana", author: "Don Caruana") {
+	definition (name: "Zooz Zen23 Toggle Switch v2-shortened", namespace: "doncaruana", author: "Don Caruana") {
 		capability "Switch"
 		capability "Polling"
 		capability "Refresh"
