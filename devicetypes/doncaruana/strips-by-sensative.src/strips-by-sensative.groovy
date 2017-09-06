@@ -1,7 +1,7 @@
 /**
  *  Strips by Sensative
  *  Device Handler by Don Caruana
- *
+ *  rename
  *  Date: 2017-2-19
  *  Supported Command Classes per device specs
  *  
