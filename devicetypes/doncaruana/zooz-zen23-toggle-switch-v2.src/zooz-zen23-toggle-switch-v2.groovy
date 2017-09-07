@@ -1,7 +1,6 @@
 /**
  *  Zooz Zen23 Toggle Switch v2
  *
- *  Date: 2017-8-31
  *  Supported Command Classes
  *  
  *         Association v2
@@ -20,39 +19,45 @@
  *      1    1 Invert Switch                                 0 (Default)-Upper paddle turns light on, 1-Lower paddle turns light on
  */
 metadata {
-	definition (name: "Zooz Zen23 Toggle Switch v2", namespace: "doncaruana", author: "Don Caruana") {
-		capability "Switch"
+	definition (name: "Zooz Zen23 Toggle Switch v2", namespace: "doncaruana", author: "Don Caruana", ocfDeviceType: "oic.d.switch") {
+		capability "Actuator"
+		capability "Indicator"
+ 		capability "Switch"
 		capability "Polling"
 		capability "Refresh"
 		capability "Sensor"
+		capability "Health Check"
+		capability "Light"
 
 //zw:L type:1001 mfr:027A prod:B111 model:251C ver:20.15 zwv:4.05 lib:06 cc:5E,86,72,5A,73,85,59,25,27,20,70 role:05 ff:9D00 ui:9D00
                                                      
 	fingerprint mfr:"027A", prod:"B111", model:"251C", deviceJoinName: "Zooz Zen23 Toggle v2"
-    fingerprint deviceId:"0x1001", inClusters: "0x5E,0x59,0x85,0x70,0x5A,0x72,0x73,0x27,0x25,0x86,0x20"
-    fingerprint cc: "0x5E,0x59,0x85,0x70,0x5A,0x72,0x73,0x27,0x25,0x86,0x20", mfr:"027A", prod:"B111", model:"251C", deviceJoinName: "Zooz Zen23 Toggle v2"
+	fingerprint deviceId:"0x1001", inClusters: "0x5E,0x59,0x85,0x70,0x5A,0x72,0x73,0x27,0x25,0x86,0x20"
+	fingerprint cc: "0x5E,0x59,0x85,0x70,0x5A,0x72,0x73,0x27,0x25,0x86,0x20", mfr:"027A", prod:"B111", model:"251C", deviceJoinName: "Zooz Zen23 Toggle v2"
 	}
 
+	// simulator metadata
 	simulator {
 		status "on":  "command: 2003, payload: FF"
 		status "off": "command: 2003, payload: 00"
 
 		// reply messages
-		reply "2001FF,delay 5000,2602": "command: 2603, payload: FF"
-		reply "200100,delay 5000,2602": "command: 2603, payload: 00"
+		reply "2001FF,delay 100,2502": "command: 2503, payload: FF"
+		reply "200100,delay 100,2502": "command: 2503, payload: 00"
 	}
 
 	preferences {
 		input "invertSwitch", "bool", title: "Invert Switch", description: "Flip switch upside down", required: false, defaultValue: false
   }
 
+	// tile definitions
 	tiles(scale: 2) {
 		multiAttributeTile(name:"switch", type: "lighting", width: 6, height: 4, canChangeIcon: true){
 			tileAttribute ("device.switch", key: "PRIMARY_CONTROL") {
 				attributeState "on", label:'${name}', action:"switch.off", icon:"st.switches.light.on", backgroundColor:"#00a0dc", nextState:"turningOff"
 				attributeState "off", label:'${name}', action:"switch.on", icon:"st.switches.light.off", backgroundColor:"#ffffff", nextState:"turningOn"
-				attributeState "turningOn", label:'${name}', action:"switch.off", icon:"st.switches.light.on", backgroundColor:"#00a0dc", nextState:"turningOff"
-				attributeState "turningOff", label:'${name}', action:"switch.on", icon:"st.switches.light.off", backgroundColor:"#ffffff", nextState:"turningOn"
+				attributeState "turningOn", label:'${name}', action:"switch.off", icon:"st.switches.light.on", backgroundColor:"#00a0dc", nextState:"on"
+				attributeState "turningOff", label:'${name}', action:"switch.on", icon:"st.switches.light.off", backgroundColor:"#ffffff", nextState:"off"
 			}
 		}
 
@@ -60,9 +65,8 @@ metadata {
 			state "default", label:'', action:"refresh.refresh", icon:"st.secondary.refresh"
 		}
 
-		main(["switch"])
-		details(["switch", "refresh"])
-
+		main "switch"
+		details(["switch","refresh"])
 	}
 }
 
@@ -89,6 +93,9 @@ def installed() {
 	cmds << mfrGet()
   cmds << zwave.versionV1.versionGet().format()
 	cmds << parmGet(1)
+	cmds << zwave.basicV1.basicSet(value: 0xFF).format()
+	// Device-Watch simply pings if no device events received for 32min(checkInterval)
+	sendEvent(name: "checkInterval", value: 2 * 15 * 60 + 2 * 60, displayed: false, data: [protocol: "zwave", hubHardwareId: device.hub.hardwareID])
   return response(delayBetween(cmds,200))
 }
 
@@ -103,13 +110,13 @@ def updated(){
     	return response(delayBetween(commands, 500))
 }
 
+
 def parse(String description) {
 	def result = null
-	if (description != "updated") {
-		def cmd = zwave.parse(description, commandClassVersions)
-		if (cmd) {
-			result = zwaveEvent(cmd)
-		}
+	def cmd = zwave.parse(description, commandClassVersions)
+	if (cmd) {
+		result = createEvent(zwaveEvent(cmd))
+        log.debug "parse: ${result}"
 	}
 	if (result?.name == 'hail' && hubFirmwareLessThan("000.011.00602")) {
 		result = [result, response(zwave.basicV1.basicGet())]
@@ -124,9 +131,13 @@ def zwaveEvent(physicalgraph.zwave.commands.basicv1.BasicReport cmd) {
 	[name: "switch", value: cmd.value ? "on" : "off", type: "physical"]
 }
 
+def zwaveEvent(physicalgraph.zwave.commands.basicv1.BasicSet cmd) {
+	[name: "switch", value: cmd.value ? "on" : "off", type: "physical"]
+}
+
 def zwaveEvent(physicalgraph.zwave.commands.switchbinaryv1.SwitchBinaryReport cmd) {
 	[name: "switch", value: cmd.value ? "on" : "off", type: "digital"]
-}	
+}
 
 def zwaveEvent(physicalgraph.zwave.commands.configurationv1.ConfigurationReport cmd) {
 	def name = ""
@@ -145,7 +156,7 @@ def zwaveEvent(physicalgraph.zwave.commands.configurationv1.ConfigurationReport 
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.hailv1.Hail cmd) {
-	createEvent([name: "hail", value: "hail", descriptionText: "Switch button was pressed", displayed: false])
+	[name: "hail", value: "hail", descriptionText: "Switch button was pressed", displayed: false]
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.manufacturerspecificv2.ManufacturerSpecificReport cmd) {
@@ -161,9 +172,16 @@ def zwaveEvent(physicalgraph.zwave.commands.manufacturerspecificv2.ManufacturerS
 	createEvent([descriptionText: "$device.displayName MSR: $msr", isStateChange: false])
 }
 
-def zwaveEvent(physicalgraph.zwave.commands.switchmultilevelv1.SwitchMultilevelStopLevelChange cmd) {
-	[createEvent(name:"switch", value:"on"), response(zwave.switchMultilevelV1.switchMultilevelGet().format())]
+def zwaveEvent(physicalgraph.zwave.commands.crc16encapv1.Crc16Encap cmd) {
+	def versions = commandClassVersions
+	def version = versions[cmd.commandClass as Integer]
+	def ccObj = version ? zwave.commandClass(cmd.commandClass, version) : zwave.commandClass(cmd.commandClass)
+	def encapsulatedCommand = ccObj?.command(cmd.command)?.parse(cmd.data)
+	if (encapsulatedCommand) {
+		zwaveEvent(encapsulatedCommand)
+	}
 }
+
 
 def zwaveEvent(physicalgraph.zwave.Command cmd) {
 	// Handles all Z-Wave commands we aren't interested in
@@ -185,24 +203,27 @@ def off() {
 }
 
 def poll() {
-	zwave.switchBinaryV1.switchBinaryGet().format()
-}
-
-def refresh() {
-	log.debug "refresh() is called"
-	def commands = []
-   	if (getDataValue("MSR") == null) {
-		  commands << mfrGet()
-      commands << zwave.versionV1.versionGet().format()
-   	}
-		commands << zwave.switchBinaryV1.switchBinaryGet().format()
+    log.debug "poll"
+	delayBetween([
+		zwave.switchBinaryV1.switchBinaryGet().format(),
+		zwave.manufacturerSpecificV1.manufacturerSpecificGet().format()
+	])
 }
 
 /**
- * PING is used by Device-Watch in attempt to reach the Device
- * */
+  * PING is used by Device-Watch in attempt to reach the Device
+**/
 def ping() {
-	refresh()
+    log.debug "ping"
+		refresh()
+}
+
+def refresh() {
+    log.debug "refresh"
+	delayBetween([
+		zwave.switchBinaryV1.switchBinaryGet().format(),
+		zwave.manufacturerSpecificV1.manufacturerSpecificGet().format()
+	])
 }
 
 def parmSet(parmnum, parmsize, parmval) {
@@ -216,6 +237,7 @@ def parmGet(parmnum) {
 def mfrGet() {
   return zwave.manufacturerSpecificV2.manufacturerSpecificGet().format()
 }
+
 
 def zwaveEvent(physicalgraph.zwave.commands.versionv1.VersionReport cmd) {	
   updateDataValue("applicationVersion", "${cmd.applicationVersion}")
