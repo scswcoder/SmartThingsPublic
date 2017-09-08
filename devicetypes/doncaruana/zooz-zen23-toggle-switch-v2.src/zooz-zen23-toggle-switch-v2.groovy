@@ -121,7 +121,6 @@ def parse(String description) {
 	def cmd = zwave.parse(description, commandClassVersions)
 	if (cmd) {
 		result = createEvent(zwaveEvent(cmd))
-        log.debug "parse: ${result}"
 	}
 	if (result?.name == 'hail' && hubFirmwareLessThan("000.011.00602")) {
 		result = [result, response(zwave.basicV1.basicGet())]
