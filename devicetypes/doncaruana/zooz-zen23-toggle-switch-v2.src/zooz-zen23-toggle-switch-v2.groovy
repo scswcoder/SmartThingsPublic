@@ -1,6 +1,11 @@
 /**
  *  Zooz Zen23 Toggle Switch v2
  *
+ *  Revision History:
+ *  2017-08-31 - Initial release
+ *  2017-09-06 - Change color scheme to match new ST standard
+ *  2017-09-08 - Remove extra basic report that firmware returns - no distinction between physical and digital
+ *
  *  Supported Command Classes
  *  
  *         Association v2
@@ -91,7 +96,7 @@ def installed() {
 	def cmds = []
 
 	cmds << mfrGet()
-  cmds << zwave.versionV1.versionGet().format()
+	cmds << zwave.versionV1.versionGet().format()
 	cmds << parmGet(1)
 	cmds << zwave.basicV1.basicSet(value: 0xFF).format()
 	// Device-Watch simply pings if no device events received for 32min(checkInterval)
@@ -102,7 +107,7 @@ def installed() {
 def updated(){
 	log.debug "updated()"
 		def commands = []
-      //parmset takes the parameter number, it's size, and the value - in that order
+		//parmset takes the parameter number, it's size, and the value - in that order
     	commands << parmSet(1, 1, [invertSwitch == true ? 1 : 0])
     	commands << parmGet(1)
 		// Device-Watch simply pings if no device events received for 32min(checkInterval)
@@ -127,8 +132,10 @@ def parse(String description) {
 	return result
 }
 
+// Removed because basic report gets automatically returned with every action as well as multilevel,
+//  so there is no physical/digital distinction
 def zwaveEvent(physicalgraph.zwave.commands.basicv1.BasicReport cmd) {
-	[name: "switch", value: cmd.value ? "on" : "off", type: "physical"]
+//	[name: "switch", value: cmd.value ? "on" : "off", type: "physical"]
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.basicv1.BasicSet cmd) {
@@ -163,8 +170,8 @@ def zwaveEvent(physicalgraph.zwave.commands.manufacturerspecificv2.ManufacturerS
 	def manufacturerCode = String.format("%04X", cmd.manufacturerId)
 	def productTypeCode = String.format("%04X", cmd.productTypeId)
 	def productCode = String.format("%04X", cmd.productId)
-  def msr = manufacturerCode + "-" + productTypeCode + "-" + productCode
-  updateDataValue("MSR", msr)
+	def msr = manufacturerCode + "-" + productTypeCode + "-" + productCode
+	updateDataValue("MSR", msr)
 	updateDataValue("Manufacturer", "Zooz")
 	updateDataValue("Manufacturer ID", manufacturerCode)
 	updateDataValue("Product Type", productTypeCode)
@@ -227,32 +234,32 @@ def refresh() {
 }
 
 def parmSet(parmnum, parmsize, parmval) {
-  return zwave.configurationV1.configurationSet(configurationValue: parmval, parameterNumber: parmnum, size: parmsize).format()
+	return zwave.configurationV1.configurationSet(configurationValue: parmval, parameterNumber: parmnum, size: parmsize).format()
 }
 
 def parmGet(parmnum) {
-  return zwave.configurationV1.configurationGet(parameterNumber: parmnum).format()
+	return zwave.configurationV1.configurationGet(parameterNumber: parmnum).format()
 }
 
 def mfrGet() {
-  return zwave.manufacturerSpecificV2.manufacturerSpecificGet().format()
+	return zwave.manufacturerSpecificV2.manufacturerSpecificGet().format()
 }
 
 
 def zwaveEvent(physicalgraph.zwave.commands.versionv1.VersionReport cmd) {	
-  updateDataValue("applicationVersion", "${cmd.applicationVersion}")
+	updateDataValue("applicationVersion", "${cmd.applicationVersion}")
 	updateDataValue("applicationSubVersion", "${cmd.applicationSubVersion}")
 	updateDataValue("zWaveLibraryType", "${cmd.zWaveLibraryType}")
 	updateDataValue("zWaveProtocolVersion", "${cmd.zWaveProtocolVersion}")
-  updateDataValue("zWaveProtocolSubVersion", "${cmd.zWaveProtocolSubVersion}")
+	updateDataValue("zWaveProtocolSubVersion", "${cmd.zWaveProtocolSubVersion}")
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.versionv1.VersionCommandClassReport cmd) {
-log.debug "vccr"
-def rcc = ""
-log.debug "version: ${cmd.commandClassVersion}"
-log.debug "class: ${cmd.requestedCommandClass}"
-rcc = Integer.toHexString(cmd.requestedCommandClass.toInteger()).toString() 
-log.debug "${rcc}"
-if (cmd.commandClassVersion > 0) {log.debug "0x${rcc}_V${cmd.commandClassVersion}"}
+	log.debug "vccr"
+	def rcc = ""
+	log.debug "version: ${cmd.commandClassVersion}"
+	log.debug "class: ${cmd.requestedCommandClass}"
+	rcc = Integer.toHexString(cmd.requestedCommandClass.toInteger()).toString() 
+	log.debug "${rcc}"
+	if (cmd.commandClassVersion > 0) {log.debug "0x${rcc}_V${cmd.commandClassVersion}"}
 }
