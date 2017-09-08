@@ -1,9 +1,13 @@
 /**
  *  Zooz Zen22 Dimmer Switch v2
  *
- *  Date: 2017-8-29
+ * Revision History:
+ * 2017-08-29 - Initial release
+ * 2017-09-06 - Change color scheme to match new ST standard
+ * 2017-09-08 - Remove extra basic report that firware returns causing duplicate events to display
+ *
+ *
  *  Supported Command Classes
- *  
  *         Association v2
  *         Association Group Information
  *         Basic
@@ -32,7 +36,7 @@ metadata {
 //zw:L type:1101 mfr:027A prod:B112 model:1F1C ver:20.15 zwv:4.05 lib:06 cc:5E,85,59,70,5A,72,73,27,26,86,20 role:05 ff:9C02 ui:9C00
 
 	fingerprint mfr:"027A", prod:"B112", model:"1F1C", deviceJoinName: "Zooz Zen22 Dimmer v2"
-    fingerprint deviceId:"0x1101", inClusters: "0x5E,0x59,0x85,0x70,0x5A,0x72,0x73,0x27,0x26,0x86,0x20"
+	fingerprint deviceId:"0x1101", inClusters: "0x5E,0x59,0x85,0x70,0x5A,0x72,0x73,0x27,0x26,0x86,0x20"
     fingerprint cc: "0x5E,0x59,0x85,0x70,0x5A,0x72,0x73,0x27,0x26,0x86,0x20", mfr:"027A", prod:"B112", model:"1F1C", deviceJoinName: "Zooz Zen22 Dimmer v2"
 	}
 
@@ -98,7 +102,7 @@ private getCommandClassVersions() {
 		0x5E: 2,  // ZwaveplusInfo
 		0x27: 1,  // All Switch
 		0x26: 1,  // Multilevel Switch
-    0x70: 1,  // Configuration
+		0x70: 1,  // Configuration
 		0x20: 1,  // Basic
 	]
 }
@@ -107,7 +111,7 @@ def installed() {
 	def cmds = []
 
 	cmds << mfrGet()
-  cmds << zwave.versionV1.versionGet().format()
+	cmds << zwave.versionV1.versionGet().format()
 	cmds << parmGet(1)
 	cmds << parmGet(2)
 	cmds << parmGet(3)
@@ -118,8 +122,8 @@ def updated(){
 		def commands = []
    	if (getDataValue("MSR") == null) {
    		def level = 99
-		  commands << mfrGet()
-      commands << zwave.versionV1.versionGet().format()
+		commands << mfrGet()
+		commands << zwave.versionV1.versionGet().format()
 	    commands << zwave.basicV1.basicSet(value: level).format()
 	    commands << zwave.switchMultilevelV1.switchMultilevelGet().format()
    	}
@@ -152,8 +156,9 @@ def parse(String description) {
 	return result
 }
 
+//Removed because basic report gets automatically returned with every action as well as multilevel. Only multilevel is necessary.
 def zwaveEvent(physicalgraph.zwave.commands.basicv1.BasicReport cmd) {
-	dimmerEvents(cmd)
+//	dimmerEvents(cmd)
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.basicv1.BasicSet cmd) {
@@ -210,8 +215,8 @@ def zwaveEvent(physicalgraph.zwave.commands.manufacturerspecificv2.ManufacturerS
 	def manufacturerCode = String.format("%04X", cmd.manufacturerId)
 	def productTypeCode = String.format("%04X", cmd.productTypeId)
 	def productCode = String.format("%04X", cmd.productId)
-  def msr = manufacturerCode + "-" + productTypeCode + "-" + productCode
-  updateDataValue("MSR", msr)
+	def msr = manufacturerCode + "-" + productTypeCode + "-" + productCode
+	updateDataValue("MSR", msr)
 	updateDataValue("Manufacturer", "Zooz")
 	updateDataValue("Manufacturer ID", manufacturerCode)
 	updateDataValue("Product Type", productTypeCode)
@@ -288,31 +293,31 @@ def refresh() {
 }
 
 def parmSet(parmnum, parmsize, parmval) {
-  return zwave.configurationV1.configurationSet(configurationValue: parmval, parameterNumber: parmnum, size: parmsize).format()
+	return zwave.configurationV1.configurationSet(configurationValue: parmval, parameterNumber: parmnum, size: parmsize).format()
 }
 
 def parmGet(parmnum) {
-  return zwave.configurationV1.configurationGet(parameterNumber: parmnum).format()
+	return zwave.configurationV1.configurationGet(parameterNumber: parmnum).format()
 }
 
 def mfrGet() {
-  return zwave.manufacturerSpecificV2.manufacturerSpecificGet().format()
+	return zwave.manufacturerSpecificV2.manufacturerSpecificGet().format()
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.versionv1.VersionReport cmd) {	
-  updateDataValue("applicationVersion", "${cmd.applicationVersion}")
+	updateDataValue("applicationVersion", "${cmd.applicationVersion}")
 	updateDataValue("applicationSubVersion", "${cmd.applicationSubVersion}")
 	updateDataValue("zWaveLibraryType", "${cmd.zWaveLibraryType}")
 	updateDataValue("zWaveProtocolVersion", "${cmd.zWaveProtocolVersion}")
-  updateDataValue("zWaveProtocolSubVersion", "${cmd.zWaveProtocolSubVersion}")
+	updateDataValue("zWaveProtocolSubVersion", "${cmd.zWaveProtocolSubVersion}")
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.versionv1.VersionCommandClassReport cmd) {
-log.debug "vccr"
-def rcc = ""
-log.debug "version: ${cmd.commandClassVersion}"
-log.debug "class: ${cmd.requestedCommandClass}"
-rcc = Integer.toHexString(cmd.requestedCommandClass.toInteger()).toString() 
-log.debug "${rcc}"
-if (cmd.commandClassVersion > 0) {log.debug "0x${rcc}_V${cmd.commandClassVersion}"}
+	log.debug "vccr"
+	def rcc = ""
+	log.debug "version: ${cmd.commandClassVersion}"
+	log.debug "class: ${cmd.requestedCommandClass}"
+	rcc = Integer.toHexString(cmd.requestedCommandClass.toInteger()).toString() 
+	log.debug "${rcc}"
+	if (cmd.commandClassVersion > 0) {log.debug "0x${rcc}_V${cmd.commandClassVersion}"}
 }
