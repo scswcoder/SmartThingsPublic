@@ -4,7 +4,7 @@
  * Revision History:
  * 2017-08-29 - Initial release
  * 2017-09-06 - Change color scheme to match new ST standard
- * 2017-09-08 - Remove extra basic report that firware returns causing duplicate events to display
+ * 2017-09-08 - Remove extra basic report that firmware returns causing duplicate events to display
  *
  *
  *  Supported Command Classes
