@@ -5,7 +5,8 @@
  * 2017-08-29 - Initial release
  * 2017-09-06 - Change color scheme to match new ST standard
  * 2017-09-08 - Remove extra basic report that firmware returns causing duplicate events to display
- *
+ * 2017-09-09 - Fix problem with slider going to zero when turning off, refactor to address double event (change control from light to switch)
+ * 2018-02-11   Update for new parameter for switches purchased after 2/1/18
  *
  *  Supported Command Classes
  *         Association v2
@@ -24,20 +25,26 @@
  *      1    1 Invert Switch                                 0 (Default)-Upper paddle turns light on, 1-Lower paddle turns light on
  *      2    1 LED Indicator                                 0 (Default)-LED is on when light is OFF, 1-LED is on when light is ON
  *      3    1 LED Disable                                   0 (Default)-LED is on based on parameter 2, 1-LED is off always
+ *      4    1 Fast Ramp                                     0 (Default)-100% brightness within 2 seconds and off in 4 seconds, 1-instant 100% and off in 1 second
  */
+
 metadata {
-	definition (name: "Zooz Zen22 Dimmer v2", namespace: "doncaruana", author: "Don Caruana") {
+	definition (name: "Zooz Zen22 Dimmer v2", namespace: "doncaruana", author: "Don Caruana", ocfDeviceType: "oic.d.light") {
 		capability "Switch Level"
+		capability "Actuator"
+		capability "Health Check"
 		capability "Switch"
 		capability "Polling"
 		capability "Refresh"
 		capability "Sensor"
+		capability "Light"
 
 //zw:L type:1101 mfr:027A prod:B112 model:1F1C ver:20.15 zwv:4.05 lib:06 cc:5E,85,59,70,5A,72,73,27,26,86,20 role:05 ff:9C02 ui:9C00
 
 	fingerprint mfr:"027A", prod:"B112", model:"1F1C", deviceJoinName: "Zooz Zen22 Dimmer v2"
 	fingerprint deviceId:"0x1101", inClusters: "0x5E,0x59,0x85,0x70,0x5A,0x72,0x73,0x27,0x26,0x86,0x20"
-    fingerprint cc: "0x5E,0x59,0x85,0x70,0x5A,0x72,0x73,0x27,0x26,0x86,0x20", mfr:"027A", prod:"B112", model:"1F1C", deviceJoinName: "Zooz Zen22 Dimmer v2"
+	fingerprint cc: "0x5E,0x59,0x85,0x70,0x5A,0x72,0x73,0x27,0x26,0x86,0x20", mfr:"027A", prod:"B112", model:"1F1C", deviceJoinName: "Zooz Zen22 Dimmer v2"
+
 	}
 
 	simulator {
@@ -61,16 +68,17 @@ metadata {
 	preferences {
 		input "ledIndicator", "bool", title: "LED on when light on", description: "LED will be on when light OFF if not set", required: false, defaultValue: false
 		input "invertSwitch", "bool", title: "Invert Switch", description: "Flip switch upside down", required: false, defaultValue: false
-		input "ledDisable", "bool", title: "LED Diabled", description: "Turn off LED completely", required: false, defaultValue: false
-  }
+		input "ledDisable", "bool", title: "LED Disabled", description: "Turn off LED completely", required: false, defaultValue: false
+		input "fastRamp", "bool", title: "Fast Ramp on/off", description: "Only for switches purchased after 2/1/18", required: false, defaultValue: false
+	}
 
 	tiles(scale: 2) {
 		multiAttributeTile(name:"switch", type: "lighting", width: 6, height: 4, canChangeIcon: true){
 			tileAttribute ("device.switch", key: "PRIMARY_CONTROL") {
-				attributeState "on", label:'${name}', action:"switch.off", icon:"st.switches.light.on", backgroundColor:"#00a0dc", nextState:"turningOff"
-				attributeState "off", label:'${name}', action:"switch.on", icon:"st.switches.light.off", backgroundColor:"#ffffff", nextState:"turningOn"
-				attributeState "turningOn", label:'${name}', action:"switch.off", icon:"st.switches.light.on", backgroundColor:"#00a0dc", nextState:"turningOff"
-				attributeState "turningOff", label:'${name}', action:"switch.on", icon:"st.switches.light.off", backgroundColor:"#ffffff", nextState:"turningOn"
+				attributeState "on", label:'${name}', action:"switch.off", icon:"st.switches.switch.on", backgroundColor:"#00a0dc", nextState:"turningOff"
+				attributeState "off", label:'${name}', action:"switch.on", icon:"st.switches.switch.off", backgroundColor:"#ffffff", nextState:"turningOn"
+				attributeState "turningOn", label:'${name}', action:"switch.off", icon:"st.switches.switch.on", backgroundColor:"#00a0dc", nextState:"turningOff"
+				attributeState "turningOff", label:'${name}', action:"switch.on", icon:"st.switches.switch.off", backgroundColor:"#ffffff", nextState:"turningOn"
 			}
 			tileAttribute ("device.level", key: "SLIDER_CONTROL") {
 				attributeState "level", action:"switch level.setLevel"
@@ -91,6 +99,45 @@ metadata {
 	}
 }
 
+def installed() {
+	def cmds = []
+// Device-Watch simply pings if no device events received for 32min(checkInterval)
+	sendEvent(name: "checkInterval", value: 2 * 15 * 60 + 2 * 60, displayed: false, data: [protocol: "zwave", hubHardwareId: device.hub.hardwareID])
+	cmds << mfrGet()
+	cmds << zwave.versionV1.versionGet().format()
+	cmds << parmGet(1)
+	cmds << parmGet(2)
+	cmds << parmGet(3)
+	cmds << parmGet(4)
+	def level = 99
+	cmds << zwave.basicV1.basicSet(value: level).format()
+    cmds << zwave.switchMultilevelV1.switchMultilevelGet().format()
+	return response(delayBetween(cmds,200))
+}
+
+def updated(){
+	def commands = []
+		if (getDataValue("MSR") == null) {
+			def level = 99
+			commands << mfrGet()
+			commands << zwave.versionV1.versionGet().format()
+			commands << zwave.basicV1.basicSet(value: level).format()
+			commands << zwave.switchMultilevelV1.switchMultilevelGet().format()
+		}
+		//parmset takes the parameter number, it's size, and the value - in that order
+		commands << parmSet(4, 1, [fastRamp == true ? 1 : 0])
+		commands << parmSet(3, 1, [ledDisable == true ? 1 : 0])
+		commands << parmSet(2, 1, [ledIndicator == true ? 1 : 0])
+		commands << parmSet(1, 1, [invertSwitch == true ? 1 : 0])
+		commands << parmGet(1)
+		commands << parmGet(2)
+		commands << parmGet(3)
+		commands << parmGet(4)
+		// Device-Watch simply pings if no device events received for 32min(checkInterval)
+		sendEvent(name: "checkInterval", value: 2 * 15 * 60 + 2 * 60, displayed: false, data: [protocol: "zwave", hubHardwareId: device.hub.hardwareID])
+		return response(delayBetween(commands, 500))
+}
+
 private getCommandClassVersions() {
 	[
 		0x59: 1,  // AssociationGrpInfo
@@ -107,41 +154,10 @@ private getCommandClassVersions() {
 	]
 }
 
-def installed() {
-	def cmds = []
-
-	cmds << mfrGet()
-	cmds << zwave.versionV1.versionGet().format()
-	cmds << parmGet(1)
-	cmds << parmGet(2)
-	cmds << parmGet(3)
-  return response(delayBetween(cmds,200))
-}
-
-def updated(){
-		def commands = []
-   	if (getDataValue("MSR") == null) {
-   		def level = 99
-		commands << mfrGet()
-		commands << zwave.versionV1.versionGet().format()
-	    commands << zwave.basicV1.basicSet(value: level).format()
-	    commands << zwave.switchMultilevelV1.switchMultilevelGet().format()
-   	}
-      //parmset takes the parameter number, it's size, and the value - in that order
-    	commands << parmSet(3, 1, [ledDisable == true ? 1 : 0])
-    	commands << parmSet(2, 1, [ledIndicator == true ? 1 : 0])
-    	commands << parmSet(1, 1, [invertSwitch == true ? 1 : 0])
-    	commands << parmGet(1)
-    	commands << parmGet(2)
-    	commands << parmGet(3)
-		// Device-Watch simply pings if no device events received for 32min(checkInterval)
-		sendEvent(name: "checkInterval", value: 2 * 15 * 60 + 2 * 60, displayed: false, data: [protocol: "zwave", hubHardwareId: device.hub.hardwareID])
-    	return response(delayBetween(commands, 500))
-}
-
 def parse(String description) {
 	def result = null
 	if (description != "updated") {
+		log.debug "parse() >> zwave.parse($description)"
 		def cmd = zwave.parse(description, commandClassVersions)
 		if (cmd) {
 			result = zwaveEvent(cmd)
@@ -156,9 +172,8 @@ def parse(String description) {
 	return result
 }
 
-//Removed because basic report gets automatically returned with every action as well as multilevel. Only multilevel is necessary.
 def zwaveEvent(physicalgraph.zwave.commands.basicv1.BasicReport cmd) {
-//	dimmerEvents(cmd)
+	dimmerEvents(cmd)
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.basicv1.BasicSet cmd) {
@@ -184,28 +199,31 @@ private dimmerEvents(physicalgraph.zwave.Command cmd) {
 
 def zwaveEvent(physicalgraph.zwave.commands.configurationv1.ConfigurationReport cmd) {
 	def name = ""
-    def value = ""
-    def reportValue = cmd.configurationValue[0]
-    log.debug "---CONFIGURATION REPORT V1--- ${device.displayName} parameter ${cmd.parameterNumber} with a byte size of ${cmd.size} is set to ${cmd.configurationValue}"
-    switch (cmd.parameterNumber) {
-        case 1:
-            name = "topoff"
-            value = reportValue == 1 ? "true" : "false"
-            break
-        case 2:
-            name = "ledfollow"
-            value = reportValue == 1 ? "true" : "false"
-            break
-        case 3:
-            name = "ledoff"
-            value = reportValue == 1 ? "true" : "false"
-            break
-        default:
-            break
-    }
+	def value = ""
+	def reportValue = cmd.configurationValue[0]
+	log.debug "---CONFIGURATION REPORT V1--- ${device.displayName} parameter ${cmd.parameterNumber} with a byte size of ${cmd.size} is set to ${cmd.configurationValue}"
+	switch (cmd.parameterNumber) {
+		case 1:
+			name = "topoff"
+			value = reportValue == 1 ? "true" : "false"
+			break
+		case 2:
+			name = "ledfollow"
+			value = reportValue == 1 ? "true" : "false"
+			break
+		case 3:
+			name = "ledoff"
+			value = reportValue == 1 ? "true" : "false"
+			break
+		case 4:
+			name = "rampfast"
+			value = reportValue == 1 ? "true" : "false"
+			break
+		default:
+			break
+	}
 	createEvent([name: name, value: value])
 }
-
 
 def zwaveEvent(physicalgraph.zwave.commands.hailv1.Hail cmd) {
 	createEvent([name: "hail", value: "hail", descriptionText: "Switch button was pressed", displayed: false])
@@ -228,6 +246,16 @@ def zwaveEvent(physicalgraph.zwave.commands.switchmultilevelv1.SwitchMultilevelS
 	[createEvent(name:"switch", value:"on"), response(zwave.switchMultilevelV1.switchMultilevelGet().format())]
 }
 
+def zwaveEvent(physicalgraph.zwave.commands.crc16encapv1.Crc16Encap cmd) {
+	def versions = commandClassVersions
+	def version = versions[cmd.commandClass as Integer]
+	def ccObj = version ? zwave.commandClass(cmd.commandClass, version) : zwave.commandClass(cmd.commandClass)
+	def encapsulatedCommand = ccObj?.command(cmd.command)?.parse(cmd.data)
+	if (encapsulatedCommand) {
+		zwaveEvent(encapsulatedCommand)
+	}
+}
+
 def zwaveEvent(physicalgraph.zwave.Command cmd) {
 	// Handles all Z-Wave commands we aren't interested in
 	[:]
@@ -237,14 +265,14 @@ def on() {
 	delayBetween([
 			zwave.basicV1.basicSet(value: 0xFF).format(),
 			zwave.switchMultilevelV1.switchMultilevelGet().format()
-	],5000)
+	],2000)
 }
 
 def off() {
 	delayBetween([
 			zwave.basicV1.basicSet(value: 0x00).format(),
 			zwave.switchMultilevelV1.switchMultilevelGet().format()
-	],5000)
+	],2000)
 }
 
 def setLevel(value) {
@@ -257,7 +285,7 @@ def setLevel(value) {
 		sendEvent(name: "switch", value: "off")
 	}
 	sendEvent(name: "level", value: level, unit: "%")
-	delayBetween ([zwave.basicV1.basicSet(value: level).format(), zwave.switchMultilevelV1.switchMultilevelGet().format()], 5000)
+	delayBetween ([zwave.basicV1.basicSet(value: level).format(), zwave.switchMultilevelV1.switchMultilevelGet().format()], 2000)
 }
 
 def setLevel(value, duration) {
@@ -267,7 +295,7 @@ def setLevel(value, duration) {
 	def dimmingDuration = duration < 128 ? duration : 128 + Math.round(duration / 60)
 	def getStatusDelay = duration < 128 ? (duration*1000)+2000 : (Math.round(duration / 60)*60*1000)+2000
 	delayBetween ([zwave.switchMultilevelV2.switchMultilevelSet(value: level, dimmingDuration: dimmingDuration).format(),
-				   zwave.switchMultilevelV1.switchMultilevelGet().format()], getStatusDelay)
+				zwave.switchMultilevelV1.switchMultilevelGet().format()], getStatusDelay)
 }
 
 def poll() {
@@ -284,10 +312,10 @@ def ping() {
 def refresh() {
 	log.debug "refresh() is called"
 	def commands = []
-   	if (getDataValue("MSR") == null) {
-		  commands << mfrGet()
-      commands << zwave.versionV1.versionGet().format()
-   	}
+		if (getDataValue("MSR") == null) {
+			commands << mfrGet()
+			commands << zwave.versionV1.versionGet().format()
+		}
 	commands << zwave.switchMultilevelV1.switchMultilevelGet().format()
 	delayBetween(commands,100)
 }
