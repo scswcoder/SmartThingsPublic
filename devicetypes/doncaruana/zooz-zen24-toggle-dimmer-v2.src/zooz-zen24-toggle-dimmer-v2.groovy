@@ -3,6 +3,7 @@
  *
  * Revision History:
  * 2018-01-27 - Initial release
+ * 2018-03-31 - Changed 99% setting (platform maximum) to show 100% in the slider 
  *
  *  Supported Command Classes
  *         Association v2
@@ -128,6 +129,10 @@ def updated(){
 
 def parse(String description) {
 	def result = null
+	// UI Trick to make 99%, which is actually the platform limit, show 100% on the control
+	if (description.indexOf('command: 2603, payload: 63 63 00') > -1) {
+		description = description.replaceAll('payload: 63 63 00','payload: 64 64 00')
+	}
 	if (description != "updated") {
 		def cmd = zwave.parse(description, commandClassVersions)
 		if (cmd) {
