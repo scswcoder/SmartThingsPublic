@@ -6,7 +6,8 @@
  * 2017-09-06 - Change color scheme to match new ST standard
  * 2017-09-08 - Remove extra basic report that firmware returns causing duplicate events to display
  * 2017-09-09 - Fix problem with slider going to zero when turning off, refactor to address double event (change control from light to switch)
- * 2018-02-11   Update for new parameter for switches purchased after 2/1/18
+ * 2018-02-11 - Update for new parameter for switches purchased after 2/1/18
+ * 2018-03-31 - Changed 99% setting (platform maximum) to show 100% in the slider
  *
  *  Supported Command Classes
  *         Association v2
@@ -156,6 +157,10 @@ private getCommandClassVersions() {
 
 def parse(String description) {
 	def result = null
+	// UI Trick to make 99%, which is actually the platform limit, show 100% on the control
+	if (description.indexOf('command: 2603, payload: 63 63 00') > -1) {
+		description = description.replaceAll('payload: 63 63 00','payload: 64 64 00')
+	}
 	if (description != "updated") {
 		log.debug "parse() >> zwave.parse($description)"
 		def cmd = zwave.parse(description, commandClassVersions)
