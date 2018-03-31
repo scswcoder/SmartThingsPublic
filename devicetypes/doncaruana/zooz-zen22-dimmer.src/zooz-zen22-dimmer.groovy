@@ -1,7 +1,12 @@
 /**
  *  Zooz Zen22 Dimmer Switch
  *
- *  Date: 2017-2-10
+ *
+ * Revision History:
+ * 2017-02-10 - Initial release
+ * 2017-09-06 - Change color scheme to match new ST standard
+ * 2018-03-31 - Changed 99% setting (platform maximum) to show 100% in the slider
+ *
  *  Supported Command Classes
  *  
  *         Association v2
@@ -135,6 +140,10 @@ def updated(){
 
 def parse(String description) {
 	def result = null
+    // UI Trick to make 99%, which is actually the platform limit, show 100% on the control
+    if (description.indexOf('command: 2603, payload: 63') > -1) {
+	    description = description.replaceAll('payload: 63','payload: 64')
+    }
     // Special routine for firmware bug - see Notes
     if (description.indexOf('command: 7006, payload: 02 02') > -1) {
     description = description + "00 "
