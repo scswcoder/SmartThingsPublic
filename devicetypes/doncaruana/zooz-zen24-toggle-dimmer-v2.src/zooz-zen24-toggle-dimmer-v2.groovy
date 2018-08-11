@@ -4,6 +4,7 @@
  * Revision History:
  * 2018-01-27 - Initial release
  * 2018-03-31 - Changed 99% setting (platform maximum) to show 100% in the slider 
+ * 2018-08-11 - Added fast ramp parameter for switches purchased after 2/1
  *
  *  Supported Command Classes
  *         Association v2
@@ -20,6 +21,7 @@
  *  
  *   Parm Size Description                                   Value
  *      1    1 Invert Switch                                 0 (Default)-Upper paddle turns light on, 1-Lower paddle turns light on
+ *      4    1 Fast Ramp                                     0 (Default)-100% brightness within 2 seconds and off in 4 seconds, 1-instant 100% and off in 1 second
  */
 metadata {
 	definition (name: "Zooz Zen24 Toggle Dimmer v2", namespace: "doncaruana", author: "Don Caruana") {
@@ -29,11 +31,17 @@ metadata {
 		capability "Refresh"
 		capability "Sensor"
 
-//zw:L type:1101 mfr:027A prod:B112 model:261C ver:20.15 zwv:4.05 lib:06 cc:5E,86,72,5A,73,85,59,26,27,20,70 role:05 ff:9C02 ui:9C00//
+//v2
+ //zw:L type:1101 mfr:027A prod:B112 model:261C ver:20.15 zwv:4.05 lib:06 cc:5E,86,72,5A,73,85,59,26,27,20,70 role:05 ff:9C02 ui:9C00//
+
+//v2.5
+ //zw:L type:1101 mfr:027A prod:B112 model:261C ver:1.05 zwv:4.61 lib:03  cc:5E,86,72,5A,73,85,59,26,27   ,70,8E,55,6C,7A role:05 ff:9C02 ui:9C00
 
 	fingerprint mfr:"027A", prod:"B112", model:"261C", deviceJoinName: "Zooz Zen24 Dimmer v2"
     fingerprint deviceId:"0x1101", inClusters: "0x5E,0x59,0x85,0x70,0x5A,0x72,0x73,0x27,0x26,0x86,0x20"
     fingerprint cc: "0x5E,0x59,0x85,0x70,0x5A,0x72,0x73,0x27,0x26,0x86,0x20", mfr:"027A", prod:"B112", model:"261C", deviceJoinName: "Zooz Zen24 Dimmer v2"
+    fingerprint deviceId:"0x1101", inClusters: "0x5E,0x59,0x85,0x70,0x5A,0x72,0x73,0x27,0x26,0x86,0x8E,0x55,0x6C,0x7A"
+    fingerprint cc: "0x5E,0x59,0x85,0x70,0x5A,0x72,0x73,0x27,0x26,0x86,0x8E,0x55,0x6C,0x7A", mfr:"027A", prod:"B112", model:"261C", deviceJoinName: "Zooz Zen24 Dimmer v2"
 	}
 
 	simulator {
@@ -56,6 +64,7 @@ metadata {
 
 	preferences {
 		input "invertSwitch", "bool", title: "Invert Switch", description: "Flip switch upside down", required: false, defaultValue: false
+		input "fastRamp", "bool", title: "Fast Ramp on/off", description: "Only for switches purchased after 2/1/18", required: false, defaultValue: false
   }
 
 	tiles(scale: 2) {
@@ -107,6 +116,7 @@ def installed() {
 	cmds << mfrGet()
 	cmds << zwave.versionV1.versionGet().format()
 	cmds << parmGet(1)
+	cmds << parmGet(4)
   return response(delayBetween(cmds,200))
 }
 
@@ -120,8 +130,10 @@ def updated(){
 	    commands << zwave.switchMultilevelV1.switchMultilevelGet().format()
    	}
       //parmset takes the parameter number, it's size, and the value - in that order
+	commands << parmSet(4, 1, [fastRamp == true ? 1 : 0])
     	commands << parmSet(1, 1, [invertSwitch == true ? 1 : 0])
     	commands << parmGet(1)
+	commands << parmGet(4)
 		// Device-Watch simply pings if no device events received for 32min(checkInterval)
 		sendEvent(name: "checkInterval", value: 2 * 15 * 60 + 2 * 60, displayed: false, data: [protocol: "zwave", hubHardwareId: device.hub.hardwareID])
     	return response(delayBetween(commands, 500))
@@ -180,10 +192,14 @@ def zwaveEvent(physicalgraph.zwave.commands.configurationv1.ConfigurationReport 
     def reportValue = cmd.configurationValue[0]
     log.debug "---CONFIGURATION REPORT V1--- ${device.displayName} parameter ${cmd.parameterNumber} with a byte size of ${cmd.size} is set to ${cmd.configurationValue}"
     switch (cmd.parameterNumber) {
-        case 1:
-            name = "topoff"
-            value = reportValue == 1 ? "true" : "false"
-            break
+	case 1:
+		name = "topoff"
+		value = reportValue == 1 ? "true" : "false"
+		break
+	case 4:
+		name = "rampfast"
+		value = reportValue == 1 ? "true" : "false"
+		break
         default:
             break
     }
