@@ -6,6 +6,7 @@
  * 2017-02-10 - Initial release
  * 2017-09-06 - Change color scheme to match new ST standard
  * 2018-03-31 - Changed 99% setting (platform maximum) to show 100% in the slider
+ * 2018-08-31 - Added Manufacturer ID and Vendor ID for new SmartThings connect app. Device settings not available. Will likely need update when new standards are published.
  *
  *  Supported Command Classes
  *  
@@ -32,7 +33,7 @@
  *   Note2: Configuration is not officially documented as a command class for this device but it is and must be available to use parameters
  */
 metadata {
-	definition (name: "Zooz Zen22 Dimmer", namespace: "doncaruana", author: "Don Caruana") {
+	definition (name: "Zooz Zen22 Dimmer", namespace: "doncaruana", author: "Don Caruana", ocfDeviceType: "oic.d.light", mnmn: "SmartThings", vid: "generic-dimmer") {
 		capability "Switch Level"
 		capability "Switch"
 		capability "Polling"
