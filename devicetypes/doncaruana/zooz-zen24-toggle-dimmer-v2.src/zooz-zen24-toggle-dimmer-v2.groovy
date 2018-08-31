@@ -5,7 +5,7 @@
  * 2018-01-27 - Initial release
  * 2018-03-31 - Changed 99% setting (platform maximum) to show 100% in the slider 
  * 2018-08-11 - Added fast ramp parameter for switches purchased after 2/1
- *
+ * 2018-08-31 - Added Manufacturer ID and Vendor ID for new SmartThings connect app. Device settings not available. Will likely need update when new standards are published. *
  *  Supported Command Classes
  *         Association v2
  *         Association Group Information
@@ -24,7 +24,7 @@
  *      4    1 Fast Ramp                                     0 (Default)-100% brightness within 2 seconds and off in 4 seconds, 1-instant 100% and off in 1 second
  */
 metadata {
-	definition (name: "Zooz Zen24 Toggle Dimmer v2", namespace: "doncaruana", author: "Don Caruana") {
+	definition (name: "Zooz Zen24 Toggle Dimmer v2", namespace: "doncaruana", author: "Don Caruana", mnmn: "SmartThings", vid: "generic-dimmer") {
 		capability "Switch Level"
 		capability "Switch"
 		capability "Polling"
