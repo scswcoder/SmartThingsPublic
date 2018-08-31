@@ -3,7 +3,8 @@
  *
  *  2017-09-05 - Initial release
  *  2017-10-14 - Fix for event log issue, combined LED parameters into one for UI
- *
+ *  2018-03-31 - Changed 99% setting (platform maximum) to show 100% in the slider
+ *  2018-08-31 - Added Manufacturer ID and Vendor ID for new SmartThings connect app. Device settings not available. Will likely need update when new standards are published. *
  *  Supported Command Classes
  *  
  *         Association v2
@@ -24,7 +25,7 @@
  *      3    1 LED Disable                                   0 (Default)-LED is on based on parameter 2, 1-LED is off always
  */
 metadata {
-	definition (name: "Zooz Zen21 Switch v2", namespace: "doncaruana", author: "Don Caruana", ocfDeviceType: "oic.d.switch") {
+	definition (name: "Zooz Zen21 Switch v2", namespace: "doncaruana", author: "Don Caruana", ocfDeviceType: "oic.d.switch", mnmn: "SmartThings", vid: "generic-switch") {
 		capability "Actuator"
 		capability "Indicator"
 		capability "Switch"
