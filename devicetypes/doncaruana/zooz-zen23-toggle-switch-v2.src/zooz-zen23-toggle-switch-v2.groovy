@@ -5,6 +5,7 @@
  *  2017-08-31 - Initial release
  *  2017-09-06 - Change color scheme to match new ST standard
  *  2017-09-08 - Remove extra basic report that firmware returns - no distinction between physical and digital
+ *  2018-08-31 - Added Manufacturer ID and Vendor ID for new SmartThings connect app. Device settings not available. Will likely need update when new standards are published.
  *
  *  Supported Command Classes
  *  
@@ -24,7 +25,7 @@
  *      1    1 Invert Switch                                 0 (Default)-Upper paddle turns light on, 1-Lower paddle turns light on
  */
 metadata {
-	definition (name: "Zooz Zen23 Toggle Switch v2", namespace: "doncaruana", author: "Don Caruana", ocfDeviceType: "oic.d.switch") {
+	definition (name: "Zooz Zen23 Toggle Switch v2", namespace: "doncaruana", author: "Don Caruana", ocfDeviceType: "oic.d.switch", mnmn: "SmartThings", vid: "generic-switch") {
 		capability "Actuator"
 		capability "Indicator"
  		capability "Switch"
