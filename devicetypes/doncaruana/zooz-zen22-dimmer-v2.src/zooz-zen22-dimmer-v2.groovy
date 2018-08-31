@@ -8,6 +8,7 @@
  * 2017-09-09 - Fix problem with slider going to zero when turning off, refactor to address double event (change control from light to switch)
  * 2018-02-11 - Update for new parameter for switches purchased after 2/1/18
  * 2018-03-31 - Changed 99% setting (platform maximum) to show 100% in the slider
+ * 2018-08-31 - Added Manufacturer ID and Vendor ID for new SmartThings connect app. Device settings not available. Will likely need update when new standards are published.
  *
  *  Supported Command Classes
  *         Association v2
@@ -30,7 +31,7 @@
  */
 
 metadata {
-	definition (name: "Zooz Zen22 Dimmer v2", namespace: "doncaruana", author: "Don Caruana", ocfDeviceType: "oic.d.light") {
+	definition (name: "Zooz Zen22 Dimmer v2", namespace: "doncaruana", author: "Don Caruana", ocfDeviceType: "oic.d.light", mnmn: "SmartThings", vid: "generic-dimmer") {
 		capability "Switch Level"
 		capability "Actuator"
 		capability "Health Check"
