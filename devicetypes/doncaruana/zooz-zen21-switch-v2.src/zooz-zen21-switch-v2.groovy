@@ -3,7 +3,6 @@
  *
  *  2017-09-05 - Initial release
  *  2017-10-14 - Fix for event log issue, combined LED parameters into one for UI
- *  2018-03-31 - Changed 99% setting (platform maximum) to show 100% in the slider
  *  2018-08-31 - Added Manufacturer ID and Vendor ID for new SmartThings connect app. Device settings not available. Will likely need update when new standards are published. *
  *  Supported Command Classes
  *  
