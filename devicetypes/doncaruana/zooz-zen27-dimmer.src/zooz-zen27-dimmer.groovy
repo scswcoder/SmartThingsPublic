@@ -3,6 +3,7 @@
  *
  * Revision History:
  * 2018-10-27 - Initial release
+ * 2018-11-18 - Fixes for parameters due to platform changes
  *
  *  Supported Command Classes
  *         Association v2
@@ -126,6 +127,7 @@ metadata {
 }
 
 def installed() {
+	log.debug "installed"
 	def cmds = []
 // Device-Watch simply pings if no device events received for 32min(checkInterval)
 	sendEvent(name: "checkInterval", value: 2 * 15 * 60 + 2 * 60, displayed: false, data: [protocol: "zwave", hubHardwareId: device.hub.hardwareID])
@@ -150,44 +152,58 @@ def installed() {
 }
 
 def updated(){
+	// These are needed when parameter defaults are null or non-workable numbers. They are set to the device defaults
+	def setOffTimer = 60
+	if (offTimer) {setOffTimer = offTimer}
+	def setOnTimer = 60
+	if (onTimer) {setOnTimer = onTimer}
+	def setRampRate = 1
+	if (rampRate) {setRampRate = rampRate}
+	def setMaxBright = 99
+	if (maxBright) {setMaxBright = maxBright}
+	def setMinBright = 1
+	if (minBright) {setMinBright = minBright}
 	def commands = []
-		if (getDataValue("MSR") == null) {
-			def level = 99
-			commands << mfrGet()
-			commands << zwave.versionV1.versionGet().format()
-			commands << zwave.basicV1.basicSet(value: level).format()
-			commands << zwave.switchMultilevelV1.switchMultilevelGet().format()
-		}
-			def seton = 1
-			def setoff = 0
-			def setremember = 2
-		//parmset takes the parameter number, it's size, and the value - in that order
-		commands << parmSet(12, 1, [doubleTap == true ? 1 : 0])
-		commands << parmSet(11, 1, [maxBright])
-		commands << parmSet(10, 1, [minBright])
-		commands << parmSet(9, 1, [rampRate])
-		commands << parmSet(8, 1, [powerRestore == "prremember" ? 2 : powerRestore == "proff" ? 0 : 1])
-		commands << parmSet(6, 4, [onTimer])
-		commands << parmSet(5, 1, [autoTurnon == true ? 1 : 0])
-		commands << parmSet(4, 4, [offTimer])
-		commands << parmSet(3, 1, [autoTurnoff == true ? 1 : 0])
-		commands << parmSet(2, 1, [ledIndicator == true ? 1 : 0])
-		commands << parmSet(1, 1, [invertSwitch == true ? 1 : 0])
-		commands << parmGet(12)
-		commands << parmGet(11)
-		commands << parmGet(10)
-		commands << parmGet(9)
-		commands << parmGet(8)
-		commands << parmGet(6)
-		commands << parmGet(5)
-		commands << parmGet(4)
-		commands << parmGet(3)
-		commands << parmGet(2)
-		commands << parmGet(1)
-        log.debug "commands: ($commands)"
-		// Device-Watch simply pings if no device events received for 32min(checkInterval)
-		sendEvent(name: "checkInterval", value: 2 * 15 * 60 + 2 * 60, displayed: false, data: [protocol: "zwave", hubHardwareId: device.hub.hardwareID])
-		return response(delayBetween(commands, 500))
+	if (getDataValue("MSR") == null) {
+		def level = 99
+		commands << mfrGet()
+		commands << zwave.versionV1.versionGet().format()
+		commands << zwave.basicV1.basicSet(value: level).format()
+		commands << zwave.switchMultilevelV1.switchMultilevelGet().format()
+	}
+	def setDoubleTap = doubleTap == true ? 1 : 0
+	def setPowerRestore = powerRestore == "prremember" ? 2 : powerRestore == "proff" ? 0 : 1
+	def setAutoTurnon = autoTurnon == true ? 1 : 0
+	def setAutoTurnoff = autoTurnoff == true ? 1 : 0
+	def setLedIndicator = ledIndicator == true ? 1 : 0
+	def setInvertSwitch = invertSwitch == true ? 1 : 0
+	//parmset takes the parameter number, it's size, and the value - in that order
+	commands << parmSet(12, 1, setDoubleTap)
+	commands << parmSet(11, 1, setMaxBright)
+	commands << parmSet(10, 1, setMinBright)
+	commands << parmSet(9, 1, setRampRate)
+	commands << parmSet(8, 1, setPowerRestore)
+	commands << parmSet(6, 4, setOnTimer)
+	commands << parmSet(5, 1, setAutoTurnon)
+	commands << parmSet(4, 4, setOffTimer)
+	commands << parmSet(3, 1, setAutoTurnon)
+	commands << parmSet(2, 1, setLedIndicator)
+	commands << parmSet(1, 1, setInvertSwitch)
+
+	commands << parmGet(12)
+	commands << parmGet(11)
+	commands << parmGet(10)
+	commands << parmGet(9)
+	commands << parmGet(8)
+	commands << parmGet(6)
+	commands << parmGet(5)
+	commands << parmGet(4)
+	commands << parmGet(3)
+	commands << parmGet(2)
+	commands << parmGet(1)
+	// Device-Watch simply pings if no device events received for 32min(checkInterval)
+	sendEvent(name: "checkInterval", value: 2 * 15 * 60 + 2 * 60, displayed: false, data: [protocol: "zwave", hubHardwareId: device.hub.hardwareID])
+	return response(delayBetween(commands, 500))
 }
 
 private getCommandClassVersions() {
@@ -280,7 +296,7 @@ def zwaveEvent(physicalgraph.zwave.commands.configurationv1.ConfigurationReport 
 			break
 		case 4:
 			name = "autoofftimer"
-			value = reportValue
+            value = cmd.configurationValue[3] + (cmd.configurationValue[2] * 0x100) + (cmd.configurationValue[1] * 0x10000) + (cmd.configurationValue[0] * 0x1000000)
 			break
 		case 5:
 			name = "autoon"
@@ -288,7 +304,7 @@ def zwaveEvent(physicalgraph.zwave.commands.configurationv1.ConfigurationReport 
 			break
 		case 6:
 			name = "autoontimer"
-			value = reportValue
+            value = cmd.configurationValue[3] + (cmd.configurationValue[2] * 0x100) + (cmd.configurationValue[1] * 0x10000) + (cmd.configurationValue[0] * 0x1000000)
 			break
 		case 8:
 			name = "afterfailure"
@@ -423,7 +439,7 @@ def refresh() {
 }
 
 def parmSet(parmnum, parmsize, parmval) {
-	return zwave.configurationV1.configurationSet(configurationValue: parmval, parameterNumber: parmnum, size: parmsize).format()
+	return zwave.configurationV1.configurationSet(scaledConfigurationValue: parmval, parameterNumber: parmnum, size: parmsize).format()
 }
 
 def parmGet(parmnum) {
