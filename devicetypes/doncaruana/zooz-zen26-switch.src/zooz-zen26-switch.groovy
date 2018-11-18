@@ -3,6 +3,7 @@
  *
  *  Revision History:
  *  2018-10-27 - Initial release
+ *  2018-11-18 - Typo in comments, fix parameter for timer
  *
  *  Supported Command Classes
  *  
@@ -24,7 +25,7 @@
  *   Parm Size Description                                   Value
  *      1    1 Invert Switch                                 0 (Default)-Upper paddle turns light on, 1-Lower paddle turns light on
  *      2    1 LED Indicator                                 0 (Default)-LED is on when light is OFF, 1-LED is on when light is ON
- *      3    2 Auto Turn-Off Timer                           0 (Disabled)-Timer for swicth to automatically shut off (0-32768)
+ *      3    2 Auto Turn-Off Timer                           0 (Disabled)-Timer for switch to automatically shut off (0-32768)
  *      4    1 Power Restore                                 2 (Default)-Remember state from pre-power failure, 0-Off after power restored, 1-On after power restore
  */
 
@@ -121,22 +122,25 @@ def installed() {
 
 def updated(){
 	log.debug "updated()"
-    	// This setOffTimer is because the parameter "default" doesn't actually give a workable number
-    	def setOffTimer = 0
-        if (offTimer != 0.0) {setOffTimer = offTimer}
-		def commands = []
-		//parmset takes the parameter number, it's size, and the value - in that order
-		commands << parmSet(4, 1, [powerRestore == "prremember" ? 2 : powerRestore == "proff" ? 0 : 1])
-		commands << parmSet(3, 2, [setOffTimer])
-		commands << parmSet(2, 1, [ledIndicator == true ? 1 : 0])
-		commands << parmSet(1, 1, [invertSwitch == true ? 1 : 0])
-			commands << parmGet(4)
-			commands << parmGet(3)
-			commands << parmGet(2)
-			commands << parmGet(1)
-		// Device-Watch simply pings if no device events received for 32min(checkInterval)
-		sendEvent(name: "checkInterval", value: 2 * 15 * 60 + 2 * 60, displayed: false, data: [protocol: "zwave", hubHardwareId: device.hub.hardwareID])
-    	return response(delayBetween(commands, 500))
+	// This setOffTimer is because the parameter "default" doesn't actually give a workable number
+	def setOffTimer = 0
+	if (offTimer) {setOffTimer = offTimer}
+	def setPowerRestore = powerRestore == "prremember" ? 2 : powerRestore == "proff" ? 0 : 1
+	def setLedIndicator = ledIndicator == true ? 1 : 0
+	def setInvertSwitch = invertSwitch == true ? 1 : 0
+	def commands = []
+	//parmset takes the parameter number, it's size, and the value - in that order
+	commands << parmSet(4, 1, setPowerRestore)
+	commands << parmSet(3, 2, setOffTimer)
+	commands << parmSet(2, 1, setLedIndicator)
+	commands << parmSet(1, 1, setInvertSwitch)
+	commands << parmGet(4)
+	commands << parmGet(3)
+	commands << parmGet(2)
+	commands << parmGet(1)
+	// Device-Watch simply pings if no device events received for 32min(checkInterval)
+	sendEvent(name: "checkInterval", value: 2 * 15 * 60 + 2 * 60, displayed: false, data: [protocol: "zwave", hubHardwareId: device.hub.hardwareID])
+    return response(delayBetween(commands, 500))
 }
 
 
@@ -185,7 +189,7 @@ def zwaveEvent(physicalgraph.zwave.commands.configurationv1.ConfigurationReport 
 			break
 		case 3:
 			name = "autoofftimer"
-			value = reportValue
+            value = cmd.configurationValue[1] + (cmd.configurationValue[0] * 0x100)
 			break
 		case 4:
 			name = "afterfailure"
@@ -278,7 +282,7 @@ def refresh() {
 }
 
 def parmSet(parmnum, parmsize, parmval) {
-	return zwave.configurationV1.configurationSet(configurationValue: parmval, parameterNumber: parmnum, size: parmsize).format()
+	return zwave.configurationV1.configurationSet(scaledConfigurationValue: parmval, parameterNumber: parmnum, size: parmsize).format()
 }
 
 def parmGet(parmnum) {
