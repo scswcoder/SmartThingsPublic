@@ -204,7 +204,7 @@ def updated(){
 	commands << parmSet(6, 4, setOnTimer)
 	commands << parmSet(5, 1, setAutoTurnon)
 	commands << parmSet(4, 4, setOffTimer)
-	commands << parmSet(3, 1, setAutoTurnon)
+	commands << parmSet(3, 1, setAutoTurnoff)
 	commands << parmSet(2, 1, setLedIndicator)
 	commands << parmSet(1, 1, setInvertSwitch)
 
