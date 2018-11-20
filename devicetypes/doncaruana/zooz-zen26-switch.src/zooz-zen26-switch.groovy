@@ -62,7 +62,7 @@ metadata {
 		input "ledIndicator", "enum", title: "LED Indicator", description: "When Off... ", options:["on": "When On", "off": "When Off", "never": "Never", "always": "Always"], defaultValue: "off"
 		input "invertSwitch", "bool", title: "Invert Switch", description: "Flip switch upside down", required: false, defaultValue: false
 		input "powerRestore", "enum", title: "After Power Restore", description: "State after power restore", options:["prremember": "Remember", "proff": "Off", "pron": "On"],defaultValue: "prremember",displayDuringSetup: false
-		input "offTimer", "number", title: "Off Timer", description: "Time in minutes to automatically turn off 0(disabled)-32768", required: false, defaultValue: 0, range: "0..32768"
+		input "offTimer", "number", title: "Off Timer", description: "Time in seconds to automatically turn off 0(disabled)-32768", required: false, defaultValue: 0, range: "0..32768"
   }
 
 	// tile definitions
