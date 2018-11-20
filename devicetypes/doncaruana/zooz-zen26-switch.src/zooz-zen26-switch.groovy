@@ -4,6 +4,7 @@
  *  Revision History:
  *  2018-10-27 - Initial release
  *  2018-11-18 - Typo in comments, fix parameter for timer
+ *  2018-11-19 - Fix LED parameter for all values
  *
  *  Supported Command Classes
  *  
@@ -24,7 +25,7 @@
  *
  *   Parm Size Description                                   Value
  *      1    1 Invert Switch                                 0 (Default)-Upper paddle turns light on, 1-Lower paddle turns light on
- *      2    1 LED Indicator                                 0 (Default)-LED is on when light is OFF, 1-LED is on when light is ON
+ *      2    1 LED Indicator                                 0 (Default)-LED is on when light is OFF, 1-LED is on when light is ON, 2-LED is always off, 3-LED is always on
  *      3    2 Auto Turn-Off Timer                           0 (Disabled)-Timer for switch to automatically shut off (0-32768)
  *      4    1 Power Restore                                 2 (Default)-Remember state from pre-power failure, 0-Off after power restored, 1-On after power restore
  */
@@ -58,7 +59,7 @@ metadata {
 	}
 
 	preferences {
-		input "ledIndicator", "bool", title: "LED on when light on", description: "LED will be on when light OFF if not set", required: false, defaultValue: false
+		input "ledIndicator", "enum", title: "LED Indicator", description: "When Off... ", options:["on": "When On", "off": "When Off", "never": "Never", "always": "Always"], defaultValue: "off"
 		input "invertSwitch", "bool", title: "Invert Switch", description: "Flip switch upside down", required: false, defaultValue: false
 		input "powerRestore", "enum", title: "After Power Restore", description: "State after power restore", options:["prremember": "Remember", "proff": "Off", "pron": "On"],defaultValue: "prremember",displayDuringSetup: false
 		input "offTimer", "number", title: "Off Timer", description: "Time in minutes to automatically turn off 0(disabled)-32768", required: false, defaultValue: 0, range: "0..32768"
@@ -126,9 +127,26 @@ def updated(){
 	def setOffTimer = 0
 	if (offTimer) {setOffTimer = offTimer}
 	def setPowerRestore = powerRestore == "prremember" ? 2 : powerRestore == "proff" ? 0 : 1
-	def setLedIndicator = ledIndicator == true ? 1 : 0
 	def setInvertSwitch = invertSwitch == true ? 1 : 0
+	def setLedIndicator = 0
 	def commands = []
+	switch (ledIndicator) {
+		case "off":
+			setLedIndicator = 0
+			break
+		case "on":
+			setLedIndicator = 1
+			break
+		case "never":
+			setLedIndicator = 2
+			break
+		case "always":
+			setLedIndicator = 3
+			break
+		default:
+			setLedIndicator = 0
+			break
+	}
 	//parmset takes the parameter number, it's size, and the value - in that order
 	commands << parmSet(4, 1, setPowerRestore)
 	commands << parmSet(3, 2, setOffTimer)
@@ -184,12 +202,28 @@ def zwaveEvent(physicalgraph.zwave.commands.configurationv1.ConfigurationReport 
 			value = reportValue == 1 ? "true" : "false"
 			break
 		case 2:
+			switch (reportValue) {
+				case 0:
+					value = "off"
+					break
+				case 1:
+					value = "on"
+					break
+				case 2:
+					value = "never"
+					break
+				case 3:
+					value = "always"
+					break
+				default:
+					value = "off"
+					break
+			}
 			name = "ledfollow"
-			value = reportValue == 1 ? "true" : "false"
 			break
 		case 3:
 			name = "autoofftimer"
-            value = cmd.configurationValue[1] + (cmd.configurationValue[0] * 0x100)
+			value = cmd.configurationValue[1] + (cmd.configurationValue[0] * 0x100)
 			break
 		case 4:
 			name = "afterfailure"
