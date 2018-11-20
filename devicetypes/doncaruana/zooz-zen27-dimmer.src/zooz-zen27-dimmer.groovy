@@ -4,6 +4,7 @@
  * Revision History:
  * 2018-10-27 - Initial release
  * 2018-11-18 - Fixes for parameters due to platform changes
+ * 2018-11-19 - Fix LED parameter for all values
  *
  *  Supported Command Classes
  *         Association v2
@@ -36,7 +37,7 @@
  *  
  *   Parm Size Description                                   Value
  *      1    1 Invert Switch                                 0 (Default)-Upper paddle turns light on, 1-Lower paddle turns light on
- *      2    1 LED Indicator                                 0 (Default)-LED is on when light is OFF, 1-LED is on when light is ON
+ *      2    1 LED Indicator                                 0 (Default)-LED is on when light is OFF, 1-LED is on when light is ON, 2-LED is always off, 3-LED is always on
  *      3    1 Auto Turn-Off                                 0 (Default)-Timer disabled, 1-Timer enabled; Set time in parameter 4
  *      4    4 Turn-off Timer                                60 (Default)-Time in minutes after turning on to automatically turn off (1-65535 minutes)
  *      5    1 Auto Turn-On                                  0 (Default)-Timer disabled, 1-Timer enabled; Set time in parameter 6
@@ -86,7 +87,7 @@ metadata {
 	}
 
 	preferences {
-		input "ledIndicator", "bool", title: "LED on when light on", description: "LED will be on when light OFF if not set", required: false, defaultValue: false
+		input "ledIndicator", "enum", title: "LED Indicator", description: "When Off... ", options:["on": "When On", "off": "When Off", "never": "Never", "always": "Always"], defaultValue: "off"
 		input "invertSwitch", "bool", title: "Invert Switch", description: "Flip switch upside down", required: false, defaultValue: false
 		input "rampRate", "number", title: "Ramp Rate", description: "Seconds to reach full brightness (1-99)", required: false, defaultValue: 1, range: "1..99"
 		input "powerRestore", "enum", title: "After Power Restore", description: "State after power restore", options:["prremember": "Remember", "proff": "Off", "pron": "On"],defaultValue: "prremember",displayDuringSetup: false
@@ -175,8 +176,25 @@ def updated(){
 	def setPowerRestore = powerRestore == "prremember" ? 2 : powerRestore == "proff" ? 0 : 1
 	def setAutoTurnon = autoTurnon == true ? 1 : 0
 	def setAutoTurnoff = autoTurnoff == true ? 1 : 0
-	def setLedIndicator = ledIndicator == true ? 1 : 0
 	def setInvertSwitch = invertSwitch == true ? 1 : 0
+	def setLedIndicator = 0
+	switch (ledIndicator) {
+		case "off":
+			setLedIndicator = 0
+			break
+		case "on":
+			setLedIndicator = 1
+			break
+		case "never":
+			setLedIndicator = 2
+			break
+		case "always":
+			setLedIndicator = 3
+			break
+		default:
+			setLedIndicator = 0
+			break
+	}
 	//parmset takes the parameter number, it's size, and the value - in that order
 	commands << parmSet(12, 1, setDoubleTap)
 	commands << parmSet(11, 1, setMaxBright)
@@ -287,8 +305,24 @@ def zwaveEvent(physicalgraph.zwave.commands.configurationv1.ConfigurationReport 
 			value = reportValue == 1 ? "true" : "false"
 			break
 		case 2:
+			switch (reportValue) {
+				case 0:
+					value = "off"
+					break
+				case 1:
+					value = "on"
+					break
+				case 2:
+					value = "never"
+					break
+				case 3:
+					value = "always"
+					break
+				default:
+					value = "off"
+					break
+			}
 			name = "ledfollow"
-			value = reportValue == 1 ? "true" : "false"
 			break
 		case 3:
 			name = "autooff"
