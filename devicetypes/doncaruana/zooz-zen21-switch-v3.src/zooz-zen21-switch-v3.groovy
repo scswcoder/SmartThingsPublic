@@ -2,6 +2,7 @@
  *  Zooz Zen21 Switch v3
  *
  *  2019-02-12 - Initial release
+ *  2019-02-13 - Update for paddle control, added association capability
  *  
  *  Supported Command Classes
  *  
@@ -22,7 +23,7 @@
  *         Firmware Update Metadata
  *
  *   Parm Size Description                                   Value
- *      1    1 Invert Switch                                 0 (Default)-Upper paddle turns light on, 1-Lower paddle turns light on
+ *      1    1 Paddle Control                                0 (Default)-Upper paddle turns light on, 1-Lower paddle turns light on, 2-either paddle toggles on/off
  *      2    1 LED Indicator                                 0 (Default)-LED is on when light is OFF, 1-LED is on when light is ON, 2-LED is always off, 3-LED is always on
  *      3    1 Auto Turn-Off                                 0 (Default)-Timer disabled, 1-Timer enabled; Set time in parameter 4
  *      4    4 Turn-off Timer                                60 (Default)-Time in minutes after turning on to automatically turn off (1-65535 minutes)
@@ -60,12 +61,25 @@ metadata {
 
 	preferences {
 		input "ledIndicator", "enum", title: "LED Indicator", description: "When Off... ", options:["on": "When On", "off": "When Off", "never": "Never", "always": "Always"], defaultValue: "off"
-		input "invertSwitch", "bool", title: "Invert Switch", description: "Flip switch upside down", required: false, defaultValue: false
+		input "paddleControl", "enum", title: "Paddle Control", description: "Standard, Inverted, or Toggle", options:["std": "Standard", "invert": "Invert", "toggle": "Toggle"], defaultValue: "std"
 		input "powerRestore", "enum", title: "After Power Restore", description: "State after power restore", options:["prremember": "Remember", "proff": "Off", "pron": "On"],defaultValue: "prremember",displayDuringSetup: false
 		input "autoTurnoff", "bool", title: "Auto Off", description: "Light will automatically turn off after set time", required: false, defaultValue: false
 		input "autoTurnon", "bool", title: "Auto On", description: "Light will automatically turn on after set time", required: false, defaultValue: false
 		input "offTimer", "number", title: "Off Timer", description: "Time in minutes to automatically turn off", required: false, defaultValue: 60, range: "1..65535"
 		input "onTimer", "number", title: "On Timer", description: "Time in minutes to automatically turn on", required: false, defaultValue: 60, range: "1..65535"
+		input (
+					type: "paragraph",
+					element: "paragraph",
+					title: "Configure Association Groups:",
+					description: "Devices in association group 2 will receive Basic Set commands directly from the switch when it is turned on or off. Use this to control another device as if it was connected to this switch.\n\n" +"Devices are entered as a comma delimited list of IDs in hexadecimal format."
+					)
+		input (
+					name: "requestedGroup2",
+					title: "Association Group 2 Members (Max of 5):",
+					type: "text",
+					required: false
+					)
+
 	}
 
 	tiles(scale: 2) {
@@ -136,6 +150,7 @@ def updated(){
 	if (offTimer) {setOffTimer = offTimer}
 	def setOnTimer = 60
 	if (onTimer) {setOnTimer = onTimer}
+	def nodes = []
 	def commands = []
 	if (getDataValue("MSR") == null) {
 		def level = 99
@@ -147,7 +162,21 @@ def updated(){
 	def setPowerRestore = powerRestore == "prremember" ? 2 : powerRestore == "proff" ? 0 : 1
 	def setAutoTurnon = autoTurnon == true ? 1 : 0
 	def setAutoTurnoff = autoTurnoff == true ? 1 : 0
-	def setInvertSwitch = invertSwitch == true ? 1 : 0
+	def setPaddleControl = 0
+	switch (paddleControl) {
+		case "std":
+			setPaddleControl = 0
+			break
+		case "invert":
+			setPaddleControl = 1
+			break
+		case "toggle":
+			setPaddleControl = 2
+			break
+		default:
+			setPaddleControl = 0
+			break
+	}
 	def setLedIndicator = 0
 	switch (ledIndicator) {
 		case "off":
@@ -166,6 +195,15 @@ def updated(){
 			setLedIndicator = 0
 			break
 	}
+	
+	if (settings.requestedGroup2 != state.currentGroup2) {
+		nodes = parseAssocGroupList(settings.requestedGroup2, 2)
+		commands << zwave.associationV2.associationRemove(groupingIdentifier: 2, nodeId: []).format()
+		commands << zwave.associationV2.associationSet(groupingIdentifier: 2, nodeId: nodes).format()
+		commands << zwave.associationV2.associationGet(groupingIdentifier: 2).format()
+		state.currentGroup2 = settings.requestedGroup2
+	}
+	
 	//parmset takes the parameter number, it's size, and the value - in that order
 	commands << parmSet(8, 1, setPowerRestore)
 	commands << parmSet(6, 4, setOnTimer)
@@ -173,7 +211,7 @@ def updated(){
 	commands << parmSet(4, 4, setOffTimer)
 	commands << parmSet(3, 1, setAutoTurnon)
 	commands << parmSet(2, 1, setLedIndicator)
-	commands << parmSet(1, 1, setInvertSwitch)
+	commands << parmSet(1, 1, setPaddleControl)
 
 	commands << parmGet(8)
 	commands << parmGet(6)
@@ -208,6 +246,21 @@ def zwaveEvent(physicalgraph.zwave.commands.basicv1.BasicReport cmd) {
 
 def zwaveEvent(physicalgraph.zwave.commands.basicv1.BasicSet cmd) {
 	[name: "switch", value: cmd.value ? "on" : "off"]
+}
+
+def zwaveEvent(physicalgraph.zwave.commands.associationv2.AssociationReport cmd) {
+	log.debug "---ASSOCIATION REPORT V2--- ${device.displayName} sent groupingIdentifier: ${cmd.groupingIdentifier} maxNodesSupported: ${cmd.maxNodesSupported} nodeId: ${cmd.nodeId} reportsToFollow: ${cmd.reportsToFollow}"
+	state.group3 = "1,2"
+	if (cmd.groupingIdentifier == 3) {
+		if (cmd.nodeId.contains(zwaveHubNodeId)) {
+			createEvent(name: "numberOfButtons", value: 2, displayed: false)
+		}
+		else {
+			sendEvent(name: "numberOfButtons", value: 0, displayed: false)
+				sendHubCommand(new physicalgraph.device.HubAction(zwave.associationV2.associationSet(groupingIdentifier: 3, nodeId: zwaveHubNodeId).format()))
+				sendHubCommand(new physicalgraph.device.HubAction(zwave.associationV2.associationGet(groupingIdentifier: 3).format()))
+		}
+	}
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.switchbinaryv1.SwitchBinaryReport cmd) {
@@ -379,4 +432,37 @@ def zwaveEvent(physicalgraph.zwave.commands.versionv1.VersionCommandClassReport 
 	rcc = Integer.toHexString(cmd.requestedCommandClass.toInteger()).toString() 
 	log.debug "${rcc}"
 	if (cmd.commandClassVersion > 0) {log.debug "0x${rcc}_V${cmd.commandClassVersion}"}
+}
+
+private parseAssocGroupList(list, group) {
+	def nodes = group == 2 ? [] : [zwaveHubNodeId]
+ 	if (list) {
+		def nodeList = list.split(',')
+		def max = group == 2 ? 5 : 4
+		def count = 0
+
+		nodeList.each { node ->
+			node = node.trim()
+			if ( count >= max) {
+				log.warn "Association Group ${group}: Number of members is greater than ${max}! The following member was discarded: ${node}"
+			}
+			else if (node.matches("\\p{XDigit}+")) {
+				def nodeId = Integer.parseInt(node,16)
+				if (nodeId == zwaveHubNodeId) {
+					log.warn "Association Group ${group}: Adding the hub as an association is not allowed (it would break double-tap)."
+				}
+				else if ( (nodeId > 0) & (nodeId < 256) ) {
+					nodes << nodeId
+					count++
+				}
+				else {
+					log.warn "Association Group ${group}: Invalid member: ${node}"
+				}
+			}
+			else {
+				log.warn "Association Group ${group}: Invalid member: ${node}"
+			}
+		}
+	}
+ 	return nodes
 }
