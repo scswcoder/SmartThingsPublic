@@ -5,6 +5,7 @@
  * 2018-10-27 - Initial release
  * 2018-11-18 - Fixes for parameters due to platform changes
  * 2018-11-19 - Fix LED parameter for all values
+ * 2019-02-16 - Added association
  *
  *  Supported Command Classes
  *         Association v2
@@ -98,6 +99,18 @@ metadata {
 		input "onTimer", "number", title: "On Timer", description: "Time in minutes to automatically turn on", required: false, defaultValue: 60, range: "1..65535"
 		input "maxBright", "number", title: "Maximum Brightness", description: "Maximum brightness that the light can go to", required: false, defaultValue: 99, range: "1..99"
 		input "minBright", "number", title: "Minimum Brightness", description: "Minimum brightness that the light can go to", required: false, defaultValue: 1, range: "1..99"
+		input (
+					type: "paragraph",
+					element: "paragraph",
+					title: "Configure Association Groups:",
+					description: "Devices in association group 2 will receive Basic Set commands directly from the switch when it is turned on or off. Use this to control another device as if it was connected to this switch.\n\n" +"Devices are entered as a comma delimited list of IDs in hexadecimal format."
+					)
+		input (
+					name: "requestedGroup2",
+					title: "Association Group 2 Members (Max of 5):",
+					type: "text",
+					required: false
+					)
 	}
 
 	tiles(scale: 2) {
@@ -164,6 +177,7 @@ def updated(){
 	if (maxBright) {setMaxBright = maxBright}
 	def setMinBright = 1
 	if (minBright) {setMinBright = minBright}
+	def nodes = []
 	def commands = []
 	if (getDataValue("MSR") == null) {
 		def level = 99
@@ -195,6 +209,15 @@ def updated(){
 			setLedIndicator = 0
 			break
 	}
+	
+	if (settings.requestedGroup2 != state.currentGroup2) {
+		nodes = parseAssocGroupList(settings.requestedGroup2, 2)
+		commands << zwave.associationV2.associationRemove(groupingIdentifier: 2, nodeId: []).format()
+		commands << zwave.associationV2.associationSet(groupingIdentifier: 2, nodeId: nodes).format()
+		commands << zwave.associationV2.associationGet(groupingIdentifier: 2).format()
+		state.currentGroup2 = settings.requestedGroup2
+	}
+	
 	//parmset takes the parameter number, it's size, and the value - in that order
 	commands << parmSet(12, 1, setDoubleTap)
 	commands << parmSet(11, 1, setMaxBright)
@@ -204,7 +227,7 @@ def updated(){
 	commands << parmSet(6, 4, setOnTimer)
 	commands << parmSet(5, 1, setAutoTurnon)
 	commands << parmSet(4, 4, setOffTimer)
-	commands << parmSet(3, 1, setAutoTurnoff)
+	commands << parmSet(3, 1, setAutoTurnon)
 	commands << parmSet(2, 1, setLedIndicator)
 	commands << parmSet(1, 1, setInvertSwitch)
 
@@ -274,6 +297,21 @@ def zwaveEvent(physicalgraph.zwave.commands.basicv1.BasicReport cmd) {
 
 def zwaveEvent(physicalgraph.zwave.commands.basicv1.BasicSet cmd) {
 	dimmerEvents(cmd)
+}
+
+def zwaveEvent(physicalgraph.zwave.commands.associationv2.AssociationReport cmd) {
+	log.debug "---ASSOCIATION REPORT V2--- ${device.displayName} sent groupingIdentifier: ${cmd.groupingIdentifier} maxNodesSupported: ${cmd.maxNodesSupported} nodeId: ${cmd.nodeId} reportsToFollow: ${cmd.reportsToFollow}"
+	state.group3 = "1,2"
+	if (cmd.groupingIdentifier == 3) {
+		if (cmd.nodeId.contains(zwaveHubNodeId)) {
+			createEvent(name: "numberOfButtons", value: 2, displayed: false)
+		}
+		else {
+			sendEvent(name: "numberOfButtons", value: 0, displayed: false)
+				sendHubCommand(new physicalgraph.device.HubAction(zwave.associationV2.associationSet(groupingIdentifier: 3, nodeId: zwaveHubNodeId).format()))
+				sendHubCommand(new physicalgraph.device.HubAction(zwave.associationV2.associationGet(groupingIdentifier: 3).format()))
+		}
+	}
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.switchmultilevelv1.SwitchMultilevelReport cmd) {
@@ -500,4 +538,37 @@ def zwaveEvent(physicalgraph.zwave.commands.versionv1.VersionCommandClassReport 
 	rcc = Integer.toHexString(cmd.requestedCommandClass.toInteger()).toString() 
 	log.debug "${rcc}"
 	if (cmd.commandClassVersion > 0) {log.debug "0x${rcc}_V${cmd.commandClassVersion}"}
+}
+
+private parseAssocGroupList(list, group) {
+	def nodes = group == 2 ? [] : [zwaveHubNodeId]
+ 	if (list) {
+		def nodeList = list.split(',')
+		def max = group == 2 ? 5 : 4
+		def count = 0
+
+		nodeList.each { node ->
+			node = node.trim()
+			if ( count >= max) {
+				log.warn "Association Group ${group}: Number of members is greater than ${max}! The following member was discarded: ${node}"
+			}
+			else if (node.matches("\\p{XDigit}+")) {
+				def nodeId = Integer.parseInt(node,16)
+				if (nodeId == zwaveHubNodeId) {
+					log.warn "Association Group ${group}: Adding the hub as an association is not allowed (it would break double-tap)."
+				}
+				else if ( (nodeId > 0) & (nodeId < 256) ) {
+					nodes << nodeId
+					count++
+				}
+				else {
+					log.warn "Association Group ${group}: Invalid member: ${node}"
+				}
+			}
+			else {
+				log.warn "Association Group ${group}: Invalid member: ${node}"
+			}
+		}
+	}
+ 	return nodes
 }
