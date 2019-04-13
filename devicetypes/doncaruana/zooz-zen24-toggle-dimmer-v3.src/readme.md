@@ -10,8 +10,10 @@ like force stopping it, but I actually cleared cache, cleared data, uninstalled 
 consistently for me.
 
 The full list of parameters are here:
+
 Parm Description           Value
  1   Toggle Control         0 (Default)-Toggle up turns light on, 1-Toggle down turns light on, 2-toggle either way toggles light status
+
  3   Auto Turn-Off          0 (Default)-Timer disabled, 1-Timer enabled; Set time in parameter 4
  4   Turn-off Timer        60 (Default)-Time in minutes after turning on to automatically turn off (1-65535 minutes)
  5   Auto Turn-On           0 (Default)-Timer disabled, 1-Timer enabled; Set time in parameter 6
