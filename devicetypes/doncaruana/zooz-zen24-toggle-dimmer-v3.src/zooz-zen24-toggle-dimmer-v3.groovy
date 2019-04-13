@@ -3,22 +3,8 @@
  *
  * Revision History:
  * 2019-03-24 - Initial release
+ * 2019-04-13 - Added Scene Controls
  *
- *  Supported Command Classes
- *         Association v2
- *         Association Group Information
- *         Basic
- *         Central Scene
- *         Configuration
- *         Device Reset Local
- *         Manufacturer Specific v2
- *         Powerlevel
- *         Switch_all
- *         Switch_multilevel
- *         Version v2
- *         ZWavePlus Info v2
- 
- *  
  *   Parm Size Description                                   Value
  *      1    1 Toggle Control                                0 (Default)-Toggle up turns light on, 1-Toggle down turns light on, 2-toggle either way toggles light status
  *      3    1 Auto Turn-Off                                 0 (Default)-Timer disabled, 1-Timer enabled; Set time in parameter 4
@@ -43,6 +29,11 @@ metadata {
 		capability "Refresh"
 		capability "Sensor"
 		capability "Light"
+		capability "Button"
+			command "tapDown2"
+			command "tapDown4"
+
+
 
  //zw:L type:1101 mfr:027A prod:B112 model:261C ver:3.00 zwv:5.03 lib:03 cc:5E,26,85,8E,59,55,86,72,5A,73,70,5B,9F,6C,7A role:05 ff:8600 ui:8604
 
@@ -125,6 +116,7 @@ metadata {
 
 def installed() {
 	log.debug "installed"
+
 	def cmds = []
 // Device-Watch simply pings if no device events received for 32min(checkInterval)
 	sendEvent(name: "checkInterval", value: 2 * 15 * 60 + 2 * 60, displayed: false, data: [protocol: "zwave", hubHardwareId: device.hub.hardwareID])
@@ -144,7 +136,7 @@ def installed() {
 
 	def level = 99
 	cmds << zwave.basicV1.basicSet(value: level).format()
-    cmds << zwave.switchMultilevelV1.switchMultilevelGet().format()
+	cmds << zwave.switchMultilevelV1.switchMultilevelGet().format()
 	return response(delayBetween(cmds,200))
 }
 
@@ -189,7 +181,13 @@ def updated(){
 			setToggleControl = 0
 			break
 	}
-	
+
+	if (setScene) {
+		sendEvent(name: "numberOfButtons", value: 2, displayed: false)
+	} else {    
+		sendEvent(name: "numberOfButtons", value: 0, displayed: false)
+	}
+
 	if (settings.requestedGroup2 != state.currentGroup2) {
 		nodes = parseAssocGroupList(settings.requestedGroup2, 2)
 		commands << zwave.associationV2.associationRemove(groupingIdentifier: 2, nodeId: []).format()
@@ -198,7 +196,7 @@ def updated(){
 		state.currentGroup2 = settings.requestedGroup2
 	}
 	
-    
+
 	//parmset takes the parameter number, it's size, and the value - in that order
 	commands << parmSet(13, 1, setScene)
 	commands << parmSet(12, 1, setDoubleTap)
@@ -240,13 +238,13 @@ private getCommandClassVersions() {
 		0x5E: 2,  // ZwaveplusInfo
 		0x26: 1,  // Multilevel Switch
 		0x70: 1,  // Configuration
-		0x55: 1,  //Transport Service
-		0x6C: 1,  //Supervision
-		0x7A: 1,  //Firmware Update Metadata
-		0x8E: 1,  //Multi Channel Association
+		0x55: 1,  // Transport Service
+		0x6C: 1,  // Supervision
+		0x7A: 1,  // Firmware Update Metadata
+		0x8E: 1,  // Multi Channel Association
 		0x20: 1,  // Basic
 		0x27: 1,  // All Switch
-//0x9F - what is this class?
+		0x9F: 1,  // S2
 	]
 }
 
@@ -340,7 +338,7 @@ def zwaveEvent(physicalgraph.zwave.commands.configurationv1.ConfigurationReport 
 			break
 		case 4:
 			name = "autoofftimer"
-            value = cmd.configurationValue[3] + (cmd.configurationValue[2] * 0x100) + (cmd.configurationValue[1] * 0x10000) + (cmd.configurationValue[0] * 0x1000000)
+			value = cmd.configurationValue[3] + (cmd.configurationValue[2] * 0x100) + (cmd.configurationValue[1] * 0x10000) + (cmd.configurationValue[0] * 0x1000000)
 			break
 		case 5:
 			name = "autoon"
@@ -348,7 +346,7 @@ def zwaveEvent(physicalgraph.zwave.commands.configurationv1.ConfigurationReport 
 			break
 		case 6:
 			name = "autoontimer"
-            value = cmd.configurationValue[3] + (cmd.configurationValue[2] * 0x100) + (cmd.configurationValue[1] * 0x10000) + (cmd.configurationValue[0] * 0x1000000)
+			value = cmd.configurationValue[3] + (cmd.configurationValue[2] * 0x100) + (cmd.configurationValue[1] * 0x10000) + (cmd.configurationValue[0] * 0x1000000)
 			break
 		case 8:
 			name = "afterfailure"
@@ -486,6 +484,53 @@ def refresh() {
 	delayBetween(commands,100)
 }
 
+
+def zwaveEvent(physicalgraph.zwave.commands.centralscenev1.CentralSceneNotification cmd) {
+	//sendEvent(name: "sequenceNumber", value: cmd.sequenceNumber, displayed:false)
+	switch (cmd.keyAttributes) {
+		case 3:
+			// Double tap
+			buttonEvent(cmd.sceneNumber, "pushed")
+			break
+		case 5:
+			// Quadruple tap
+			buttonEvent(cmd.sceneNumber + 1, "pushed")
+			break
+		default:
+			log.debug "Unhandled CentralSceneNotification: ${cmd}"
+			break
+	}
+}
+
+def buttonEvent(button, value) {
+	createEvent(name: "button", value: value, data: [buttonNumber: button], descriptionText: "$device.displayName button $button was $value", isStateChange: true)
+}
+
+def tapDown2Response(String buttonType) {
+	[name: "button", value: "pushed", data: [buttonNumber: "1"], descriptionText: "$device.displayName Tap-Down-2 (button 1) pressed", isStateChange: true, type: "$buttonType"]
+}
+
+def tapDown4Response(String buttonType) {
+	[name: "button", value: "pushed", data: [buttonNumber: "2"], descriptionText: "$device.displayName Tap-Down-4 (button 2) pressed", isStateChange: true, type: "$buttonType"]
+}
+
+def tapDown2() {
+	sendEvent(tapDown2Response("digital"))
+}
+
+def tapDown4() {
+	sendEvent(tapDown4Response("digital"))
+}
+
+def zwaveEvent(physicalgraph.zwave.commands.firmwareupdatemdv2.FirmwareMdReport cmd) { 
+	log.debug ("received Firmware Report")
+	log.debug "checksum:       ${cmd.checksum}"
+	log.debug "firmwareId:     ${cmd.firmwareId}"
+	log.debug "manufacturerId: ${cmd.manufacturerId}"
+	[:]
+}
+
+
 def parmSet(parmnum, parmsize, parmval) {
 	return zwave.configurationV1.configurationSet(scaledConfigurationValue: parmval, parameterNumber: parmnum, size: parmsize).format()
 }
@@ -518,7 +563,7 @@ def zwaveEvent(physicalgraph.zwave.commands.versionv1.VersionCommandClassReport 
 
 private parseAssocGroupList(list, group) {
 	def nodes = group == 2 ? [] : [zwaveHubNodeId]
- 	if (list) {
+	if (list) {
 		def nodeList = list.split(',')
 		def max = group == 2 ? 5 : 4
 		def count = 0
@@ -546,5 +591,5 @@ private parseAssocGroupList(list, group) {
 			}
 		}
 	}
- 	return nodes
+	return nodes
 }
