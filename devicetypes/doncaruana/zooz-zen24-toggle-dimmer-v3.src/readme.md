@@ -9,6 +9,8 @@ You may run into a known bug on android with Smart Lighting in that it will not 
 like force stopping it, but I actually cleared cache, cleared data, uninstalled and reinstalled to get it to save
 consistently for me.
 
+You can also use webcore to do the same button assignment.
+
 The full list of parameters are here:
 
 Parm Description           Value
