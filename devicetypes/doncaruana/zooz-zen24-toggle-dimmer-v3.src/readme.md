@@ -1,3 +1,5 @@
+# Zen24 Toggle Dimmer v3.0
+
 This is the latest toggle dimmer from thesmartesthouse with the new version 3 firmware
 https://www.thesmartesthouse.com/products/zooz-z-wave-plus-dimmer-toggle-switch-zen24
 
