@@ -3,6 +3,7 @@
  *
  * Revision History:
  * 2019-03-24 - Initial release
+ * 2019-05-05 - Added all functions for firmware 2.01
  *
  *  Supported Command Classes
  *         Association v2
@@ -20,7 +21,7 @@
  
  *  
  *   Parm Size Description                                   Value
- *      1    1 Invert Switch                                 0 (Default)-Upper paddle turns light on, 1-Lower paddle turns light on
+ *      1    1 Paddle Control                                0 (Default)-Upper paddle turns light on, 1-Lower paddle turns light on, 2-either paddle toggles on/off
  *      2    1 LED Indicator                                 0 (Default)-LED is on when light is OFF, 1-LED is on when light is ON, 2-LED is always off, 3-LED is always on
  *      3    1 Auto Turn-Off                                 0 (Default)-Timer disabled, 1-Timer enabled; Set time in parameter 4
  *      4    4 Turn-off Timer                                60 (Default)-Time in minutes after turning on to automatically turn off (1-65535 minutes)
@@ -30,8 +31,10 @@
  *      9    1 Ramp Rate Control                             1 (Default)-Ramp rate in seconds to reach full brightness or off (1-99 seconds)
  *     10    1 Minimum Brightness                            1 (Default)-Minimum brightness that light will set (1-99%)
  *     11    1 Maximum Brightness                            99 (Default)-Maximum brightness that light will set (1-99%)
- *     12    1 Double Tap                                    0 (Default)-Light will go to full brightness with double tap, 1-light will go to max set in Parameter 11 with double tap 
+ *     12    1 Double Tap                                    0 (Default)-Light will go to full brightness with double tap, 1-light will go to max set in Parameter 11 with double tap
  *     13    1 Scene Control                                 0 (Default)-Scene control disabled, 1-Scene control enabled
+ *     14    1 Disable Double Tap                            0 (Default)-Double tap to full/max brightness, 1-double tap disabled-single tap to last brightness, 2-double tap disable-single tap to full/max brightness
+ *     15    1 Disable Paddle                                1 (Default)-Paddle is used for local control, 0-Paddle single tap disabled
  */
 
 metadata {
@@ -44,11 +47,23 @@ metadata {
 		capability "Refresh"
 		capability "Sensor"
 		capability "Light"
+		capability "Button"
+			command "tapDown1"
+			command "tapDown2"
+			command "tapDown3"
+			command "tapDown4"
+			command "tapDown5"
+			command "tapUp1"
+			command "tapUp2"
+			command "tapUp3"
+			command "tapUp4"
+			command "tapUp5"
 
- //zw:L type:1101 mfr:027A prod:A000 model:A002 ver:2.00 zwv:5.03 lib:03 cc:5E,26,85,8E,59,55,86,72,5A,5B,73,70,9F,6C,7A role:05 ff:8600 ui:8604
 
+ //zw:L type:1101 mfr:027A prod:A000 model:A002 ver:2.00 zwv:5.03 lib:03 cc:5E,26,85,8E,59,55,86,72,5A,73,70,5B,9F,6C,7A role:05 ff:8600 ui:8604
+ //zw:L type:1101 mfr:027A prod:A000 model:A002 ver:2.01 zwv:5.03 lib:03 cc:5E,26,85,8E,59,55,86,72,5A,73,70,5B,9F,6C,7A role:05 ff:8600 ui:8604
 
-	fingerprint mfr:"027A", prod:"A000", model:"A002", ver:"2.00", deviceJoinName: "Zooz Zen27 Dimmer v2"
+	fingerprint mfr:"027A", prod:"A000", model:"A002", deviceJoinName: "Zooz Zen27 Dimmer v2"
 	fingerprint deviceId:"0x1101", inClusters: "0x26,0x55,0x59,0x5A,0x5B,0x5E,0x6C,0x70,0x72,0x73,0x7A,0x85,0x86,0x8E,0x9F"
 	fingerprint cc: "0x26,0x55,0x59,0x5A,0x5B,0x5E,0x6C,0x70,0x72,0x73,0x7A,0x85,0x86,0x8E,0x9F", mfr:"027A", prod:"A000", model:"A002", deviceJoinName: "Zooz Zen27 Dimmer v2"
 
@@ -74,17 +89,19 @@ metadata {
 
 	preferences {
 		input "ledIndicator", "enum", title: "LED Indicator", description: "When Off... ", options:["on": "When On", "off": "When Off", "never": "Never", "always": "Always"], defaultValue: "off"
-		input "invertSwitch", "bool", title: "Invert Switch", description: "Flip switch upside down", required: false, defaultValue: false
+		input "paddleControl", "enum", title: "Paddle Control", description: "Standard, Inverted, or Toggle", options:["std": "Standard", "invert": "Invert", "toggle": "Toggle"], defaultValue: "std"
 		input "rampRate", "number", title: "Ramp Rate", description: "Seconds to reach full brightness (1-99)", required: false, defaultValue: 1, range: "1..99"
 		input "powerRestore", "enum", title: "After Power Restore", description: "State after power restore", options:["prremember": "Remember", "proff": "Off", "pron": "On"],defaultValue: "prremember",displayDuringSetup: false
 		input "sceneCtrl", "bool", title: "Scene Control", description: "Enable scene control", required: false, defaultValue: false
 		input "doubleTap", "bool", title: "Double Tap", description: "Double Tap limited to max set", required: false, defaultValue: false
+		input "doubleTapDisable", "enum", title: "Double Tap Disable", description: "Max/Full, Single to last, single to max/full", options:["std": "Max/Full", "singleLast": "Single Last", "singleMax": "Single Max"], defaultValue: "std"
 		input "autoTurnoff", "bool", title: "Auto Off", description: "Light will automatically turn off after set time", required: false, defaultValue: false
 		input "autoTurnon", "bool", title: "Auto On", description: "Light will automatically turn on after set time", required: false, defaultValue: false
 		input "offTimer", "number", title: "Off Timer", description: "Time in minutes to automatically turn off", required: false, defaultValue: 60, range: "1..65535"
 		input "onTimer", "number", title: "On Timer", description: "Time in minutes to automatically turn on", required: false, defaultValue: 60, range: "1..65535"
 		input "maxBright", "number", title: "Maximum Brightness", description: "Maximum brightness that the light can go to", required: false, defaultValue: 99, range: "1..99"
 		input "minBright", "number", title: "Minimum Brightness", description: "Minimum brightness that the light can go to", required: false, defaultValue: 1, range: "1..99"
+		input "localControl", "bool", title: "Local Control", description: "Local paddle control enabled", required: false, defaultValue: true
 		input (
 					type: "paragraph",
 					element: "paragraph",
@@ -145,10 +162,12 @@ def installed() {
 	cmds << parmGet(11)
 	cmds << parmGet(12)
 	cmds << parmGet(13)
+	cmds << parmGet(14)
+	cmds << parmGet(15)
 
 	def level = 99
 	cmds << zwave.basicV1.basicSet(value: level).format()
-    cmds << zwave.switchMultilevelV1.switchMultilevelGet().format()
+	cmds << zwave.switchMultilevelV1.switchMultilevelGet().format()
 	return response(delayBetween(cmds,200))
 }
 
@@ -177,9 +196,39 @@ def updated(){
 	def setDoubleTap = doubleTap == true ? 1 : 0
 	def setPowerRestore = powerRestore == "prremember" ? 2 : powerRestore == "proff" ? 0 : 1
 	def setAutoTurnon = autoTurnon == true ? 1 : 0
+	def setLocalControl = localControl == true ? 1 : 0
 	def setAutoTurnoff = autoTurnoff == true ? 1 : 0
-	def setInvertSwitch = invertSwitch == true ? 1 : 0
+	def setDtapDisable = 0
+	def setPaddleControl = 0
 	def setLedIndicator = 0
+	switch (paddleControl) {
+		case "std":
+			setPaddleControl = 0
+			break
+		case "invert":
+			setPaddleControl = 1
+			break
+		case "toggle":
+			setPaddleControl = 2
+			break
+		default:
+			setPaddleControl = 0
+			break
+	}
+	switch (doubleTapDisable) {
+		case "std":
+			setDtapDisable = 0
+			break
+		case "singleLast":
+			setDtapDisable = 1
+			break
+		case "singleMax":
+			setDtapDisable = 2
+			break
+		default:
+			setDtapDisable = 0
+			break
+	}
 	switch (ledIndicator) {
 		case "off":
 			setLedIndicator = 0
@@ -198,6 +247,13 @@ def updated(){
 			break
 	}
 	
+	if (setScene) {
+	sendEvent(name: "numberOfButtons", value: 10, displayed: false)
+} else {
+	sendEvent(name: "numberOfButtons", value: 0, displayed: false)
+}
+
+	
 	if (settings.requestedGroup2 != state.currentGroup2) {
 		nodes = parseAssocGroupList(settings.requestedGroup2, 2)
 		commands << zwave.associationV2.associationRemove(groupingIdentifier: 2, nodeId: []).format()
@@ -207,6 +263,8 @@ def updated(){
 	}
 	
 	//parmset takes the parameter number, it's size, and the value - in that order
+	commands << parmSet(15, 1, setLocalControl)
+	commands << parmSet(14, 1, setDtapDisable)
 	commands << parmSet(13, 1, setScene)
 	commands << parmSet(12, 1, setDoubleTap)
 	commands << parmSet(11, 1, setMaxBright)
@@ -218,8 +276,10 @@ def updated(){
 	commands << parmSet(4, 4, setOffTimer)
 	commands << parmSet(3, 1, setAutoTurnon)
 	commands << parmSet(2, 1, setLedIndicator)
-	commands << parmSet(1, 1, setInvertSwitch)
+	commands << parmSet(1, 1, setPaddleControl)
 
+	commands << parmGet(15)
+	commands << parmGet(14)
 	commands << parmGet(13)
 	commands << parmGet(12)
 	commands << parmGet(11)
@@ -249,13 +309,13 @@ private getCommandClassVersions() {
 		0x5E: 2,  // ZwaveplusInfo
 		0x26: 1,  // Multilevel Switch
 		0x70: 1,  // Configuration
-		0x55: 1,  //Transport Service
-		0x6C: 1,  //Supervision
-		0x7A: 1,  //Firmware Update Metadata
-		0x8E: 1,  //Multi Channel Association
+		0x55: 1,  // Transport Service
+		0x6C: 1,  // Supervision
+		0x7A: 1,  // Firmware Update Metadata
+		0x8E: 1,  // Multi Channel Association
 		0x20: 1,  // Basic
 		0x27: 1,  // All Switch
-//0x9F - what is this class?
+		0x9F: 1,  // S2
 	]
 }
 
@@ -264,6 +324,9 @@ def parse(String description) {
 	// UI Trick to make 99%, which is actually the platform limit, show 100% on the control
 	if (description.indexOf('command: 2603, payload: 63 63 00') > -1) {
 		description = description.replaceAll('payload: 63 63 00','payload: 64 64 00')
+	}
+	if (description.indexOf('command: 2003, payload: 63') > -1) {
+		description = description.replaceAll('payload: 63','payload: 64')
 	}
 	if (description != "updated") {
 		log.debug "parse() >> zwave.parse($description)"
@@ -294,7 +357,7 @@ def zwaveEvent(physicalgraph.zwave.commands.associationv2.AssociationReport cmd)
 	state.group3 = "1,2"
 	if (cmd.groupingIdentifier == 3) {
 		if (cmd.nodeId.contains(zwaveHubNodeId)) {
-			createEvent(name: "numberOfButtons", value: 2, displayed: false)
+			createEvent(name: "numberOfButtons", value: 10, displayed: false)
 		}
 		else {
 			sendEvent(name: "numberOfButtons", value: 0, displayed: false)
@@ -329,8 +392,21 @@ def zwaveEvent(physicalgraph.zwave.commands.configurationv1.ConfigurationReport 
 	log.debug "---CONFIGURATION REPORT V1--- ${device.displayName} parameter ${cmd.parameterNumber} with a byte size of ${cmd.size} is set to ${cmd.configurationValue}"
 	switch (cmd.parameterNumber) {
 		case 1:
-			name = "topoff"
-			value = reportValue == 1 ? "true" : "false"
+			name = "topcontrol"
+			switch (reportValue) {
+				case 0:
+					value = "on"
+					break
+				case 1:
+					value = "off"
+					break
+				case 2:
+					value = "toggle"
+					break
+				default:
+					value = "on"
+					break
+			}
 			break
 		case 2:
 			switch (reportValue) {
@@ -358,7 +434,7 @@ def zwaveEvent(physicalgraph.zwave.commands.configurationv1.ConfigurationReport 
 			break
 		case 4:
 			name = "autoofftimer"
-            value = cmd.configurationValue[3] + (cmd.configurationValue[2] * 0x100) + (cmd.configurationValue[1] * 0x10000) + (cmd.configurationValue[0] * 0x1000000)
+			value = cmd.configurationValue[3] + (cmd.configurationValue[2] * 0x100) + (cmd.configurationValue[1] * 0x10000) + (cmd.configurationValue[0] * 0x1000000)
 			break
 		case 5:
 			name = "autoon"
@@ -366,7 +442,7 @@ def zwaveEvent(physicalgraph.zwave.commands.configurationv1.ConfigurationReport 
 			break
 		case 6:
 			name = "autoontimer"
-            value = cmd.configurationValue[3] + (cmd.configurationValue[2] * 0x100) + (cmd.configurationValue[1] * 0x10000) + (cmd.configurationValue[0] * 0x1000000)
+			value = cmd.configurationValue[3] + (cmd.configurationValue[2] * 0x100) + (cmd.configurationValue[1] * 0x10000) + (cmd.configurationValue[0] * 0x1000000)
 			break
 		case 8:
 			name = "afterfailure"
@@ -401,6 +477,26 @@ def zwaveEvent(physicalgraph.zwave.commands.configurationv1.ConfigurationReport 
 			break
 		case 13:
 			name = "scene_control"
+			value = reportValue == 1 ? "true" : "false"
+			break
+		case 14:
+			name = "double_tap_disable"
+			switch (reportValue) {
+				case 0:
+					value = "off"
+					break
+				case 1:
+					value = "single_max"
+					break
+				case 2:
+					value = "single_full"
+					break
+				default:
+					value = "off"
+					break
+			}
+		case 15:
+			name = "local_control"
 			value = reportValue == 1 ? "true" : "false"
 			break
 		default:
@@ -493,6 +589,157 @@ def ping() {
 	refresh()
 }
 
+def zwaveEvent(physicalgraph.zwave.commands.centralscenev1.CentralSceneNotification cmd) {
+	def result = []
+	switch (cmd.sceneNumber) {
+		case 1:
+			// Down
+			switch (cmd.keyAttributes) {
+				case 0:
+					// Press Once
+						result += createEvent(tapDown1Response("physical"))
+						result += createEvent([name: "switch", value: "off", type: "physical"])
+						break
+					case 3: 
+						// 2 Times
+						result +=createEvent(tapDown2Response("physical"))
+						break
+					case 4:
+						// 3 times
+						result=createEvent(tapDown3Response("physical"))
+						break
+					case 5:
+						// 4 times
+						result=createEvent(tapDown4Response("physical"))
+						break
+					case 6:
+						// 5 times
+						result=createEvent(tapDown5Response("physical"))
+						break
+					default:
+						log.debug ("unexpected down press keyAttribute: $cmd.keyAttributes")
+				}
+				break
+		case 2:
+			// Up
+			switch (cmd.keyAttributes) {
+				case 0:
+					// Press Once
+					result += createEvent(tapUp1Response("physical"))
+					result += createEvent([name: "switch", value: "on", type: "physical"]) 
+					break
+				case 3: 
+					// 2 Times
+						result+=createEvent(tapUp2Response("physical"))
+					break
+				case 4:
+					// 3 Times
+					result=createEvent(tapUp3Response("physical"))
+					break
+				case 5:
+					// 4 Times
+					result=createEvent(tapUp4Response("physical"))
+					break
+				case 6:
+					// 5 Times
+					result=createEvent(tapUp5Response("physical"))
+					break
+				default:
+					log.debug ("unexpected up press keyAttribute: $cmd.keyAttributes")
+			}
+			break
+		default:
+			// unexpected case
+			log.debug ("unexpected scene: $cmd.sceneNumber")
+			log.debug ("unexpected scene: $cmd")
+	}
+}
+
+def buttonEvent(button, value) {
+	createEvent(name: "button", value: value, data: [buttonNumber: button], descriptionText: "$device.displayName button $button was $value", isStateChange: true)
+}
+
+def tapDown1Response(String buttonType) {
+	[name: "button", value: "pushed", data: [buttonNumber: "2"], descriptionText: "$device.displayName Tap-Down-1 (button 2) pressed", isStateChange: true, type: "$buttonType"]
+}
+
+def tapDown2Response(String buttonType) {
+	[name: "button", value: "pushed", data: [buttonNumber: "4"], descriptionText: "$device.displayName Tap-Down-2 (button 4) pressed", isStateChange: true, type: "$buttonType"]
+}
+
+def tapDown3Response(String buttonType) {
+	[name: "button", value: "pushed", data: [buttonNumber: "6"], descriptionText: "$device.displayName Tap-Down-3 (button 6) pressed", isStateChange: true, type: "$buttonType"]
+}
+
+def tapDown4Response(String buttonType) {
+	[name: "button", value: "pushed", data: [buttonNumber: "8"], descriptionText: "$device.displayName Tap-Down-4 (button 8) pressed", isStateChange: true, type: "$buttonType"]
+}
+
+def tapDown5Response(String buttonType) {
+	[name: "button", value: "pushed", data: [buttonNumber: "10"], descriptionText: "$device.displayName Tap-Down-5 (button 10) pressed", isStateChange: true, type: "$buttonType"]
+}
+
+def tapUp1Response(String buttonType) {
+	[name: "button", value: "pushed", data: [buttonNumber: "1"], descriptionText: "$device.displayName Tap-Up-1 (button 1) pressed", isStateChange: true, type: "$buttonType"]
+}
+
+def tapUp2Response(String buttonType) {
+	[name: "button", value: "pushed", data: [buttonNumber: "3"], descriptionText: "$device.displayName Tap-Up-2 (button 3) pressed", isStateChange: true, type: "$buttonType"]
+}
+
+def tapUp3Response(String buttonType) {
+	[name: "button", value: "pushed", data: [buttonNumber: "5"], descriptionText: "$device.displayName Tap-Up-3 (button 5) pressed", isStateChange: true, type: "$buttonType"]
+}
+
+def tapUp4Response(String buttonType) {
+	[name: "button", value: "pushed", data: [buttonNumber: "7"], descriptionText: "$device.displayName Tap-Up-4 (button 7) pressed", isStateChange: true, type: "$buttonType"]
+}
+
+def tapUp5Response(String buttonType) {
+	[name: "button", value: "pushed", data: [buttonNumber: "9"], descriptionText: "$device.displayName Tap-Up-5 (button 9) pressed", isStateChange: true, type: "$buttonType"]
+}
+
+def tapDown1() {
+	sendEvent(tapDown1Response("digital"))
+}
+
+def tapDown2() {
+	sendEvent(tapDown2Response("digital"))
+}
+
+def tapDown3() {
+	sendEvent(tapDown3Response("digital"))
+}
+
+def tapDown4() {
+	sendEvent(tapDown4Response("digital"))
+}
+
+def tapDown5() {
+	sendEvent(tapDown5Response("digital"))
+}
+
+def tapUp1() {
+	sendEvent(tapUp1Response("digital"))
+}
+
+def tapUp2() {
+	sendEvent(tapUp2Response("digital"))
+}
+
+def tapUp3() {
+	sendEvent(tapUp3Response("digital"))
+}
+
+def tapUp4() {
+	sendEvent(tapUp4Response("digital"))
+}
+
+def tapUp5() {
+	sendEvent(tapUp5Response("digital"))
+}
+
+
 def refresh() {
 	log.debug "refresh() is called"
 	def commands = []
@@ -564,5 +811,5 @@ private parseAssocGroupList(list, group) {
 			}
 		}
 	}
- 	return nodes
+	return nodes
 }
