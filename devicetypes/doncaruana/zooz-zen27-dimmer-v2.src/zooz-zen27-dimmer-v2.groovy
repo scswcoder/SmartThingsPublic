@@ -4,6 +4,7 @@
  * Revision History:
  * 2019-03-24 - Initial release
  * 2019-05-05 - Added all functions for firmware 2.01
+ * 2019-07-11 - Fix for SmartThings not honoring defaultValue in preferences and leaving preference value as null unless explicitly set
  *
  *  Supported Command Classes
  *         Association v2
@@ -172,7 +173,9 @@ def installed() {
 }
 
 def updated(){
-	// These are needed when parameter defaults are null or non-workable numbers. They are set to the device defaults
+	// These are needed as SmartThings is not honoring defaultValue in preferences. They are set to the device defaults
+	def setLocalControl = 1
+	if (localControl) {setLocalControl = localControl == true ? 1 : 0}
 	def setOffTimer = 60
 	if (offTimer) {setOffTimer = offTimer}
 	def setOnTimer = 60
@@ -183,6 +186,9 @@ def updated(){
 	if (maxBright) {setMaxBright = maxBright}
 	def setMinBright = 1
 	if (minBright) {setMinBright = minBright}
+	def setPowerRestore = 2
+	if (powerRestore) {setPowerRestore = powerRestore == "prremember" ? 2 : powerRestore == "proff" ? 0 : 1}
+
 	def nodes = []
 	def commands = []
 	if (getDataValue("MSR") == null) {
@@ -194,9 +200,7 @@ def updated(){
 	}
 	def setScene = sceneCtrl == true ? 1 : 0
 	def setDoubleTap = doubleTap == true ? 1 : 0
-	def setPowerRestore = powerRestore == "prremember" ? 2 : powerRestore == "proff" ? 0 : 1
 	def setAutoTurnon = autoTurnon == true ? 1 : 0
-	def setLocalControl = localControl == true ? 1 : 0
 	def setAutoTurnoff = autoTurnoff == true ? 1 : 0
 	def setDtapDisable = 0
 	def setPaddleControl = 0
