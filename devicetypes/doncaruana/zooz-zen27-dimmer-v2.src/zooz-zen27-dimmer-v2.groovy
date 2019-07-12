@@ -174,8 +174,7 @@ def installed() {
 
 def updated(){
 	// These are needed as SmartThings is not honoring defaultValue in preferences. They are set to the device defaults
-	def setLocalControl = 1
-	if (localControl) {setLocalControl = localControl == true ? 1 : 0}
+	def setLocalControl = localControl == null ? 1 : localControl == true ? 1 : 0
 	def setOffTimer = 60
 	if (offTimer) {setOffTimer = offTimer}
 	def setOnTimer = 60
