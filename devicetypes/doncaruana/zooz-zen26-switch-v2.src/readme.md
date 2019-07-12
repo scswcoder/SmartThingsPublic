@@ -53,3 +53,5 @@ The full list of parameters are here:
 <tr><td>11</td><td>Local Control</td><td>1</td><td>0-Local control disabled, 1-Local control enabled</td></tr>
 </table>
 
+The handler is just over a subdirectory...
+https://github.com/doncaruana/SmartThings-doncaruana/blob/master/devicetypes/doncaruana/zooz-zen26-switch-v2.src/zooz-zen26-switch-v2.groovy
