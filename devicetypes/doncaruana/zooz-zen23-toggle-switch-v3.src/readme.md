@@ -45,6 +45,6 @@ The full list of parameters are here:
 <tr><td>6</td><td>Turn-on Timer</td><td>60</td><td>60-Time in minutes after turning off to automatically turn on (1-65535 minutes)</td></tr>
 <tr><td>8</td><td>Power Restore</td><td>2</td><td>2-Remember state from pre-power failure, 0-Off after power restored, 1-On after power restore</td></tr>
 <tr><td>9</td><td>Scene Control</td><td>0</td><td>0-Scene control disabled, 1-Scene control enabled</td></tr>
-<tr><td>9</td><td>Local Control</td><td>1</td><td>0-Local control disabled, 1-Local control enabled</td></tr>
+<tr><td>10</td><td>Local Control</td><td>1</td><td>0-Local control disabled, 1-Local control enabled</td></tr>
 </table>
 
