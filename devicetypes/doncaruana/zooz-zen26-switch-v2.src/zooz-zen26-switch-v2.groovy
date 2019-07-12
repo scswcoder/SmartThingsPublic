@@ -3,6 +3,7 @@
  *
  *  Revision History:
  *  2019-03-24 - Initial release
+ *  2019-07-11 - Added all functions for firmware 2.01
  *
  *  Supported Command Classes
  *         Association v2
@@ -31,6 +32,7 @@
  *      6    4 Turn-on Timer                                 60 (Default)-Time in minutes after turning off to automatically turn on (1-65535 minutes)
  *      8    1 Power Restore                                 2 (Default)-Remember state from pre-power failure, 0-Off after power restored, 1-On after power restore
  *     10    1 Scene Control                                 0 (Default)-Scene control disabled, 1-Scene control enabled
+ *     11    1 Disable Paddle                                1 (Default)-Paddle is used for local control, 0-Paddle single tap disabled
  */
 
 metadata {
@@ -43,7 +45,18 @@ metadata {
 		capability "Sensor"
 		capability "Health Check"
 		capability "Light"
-        
+		capability "Button"
+			command "tapDown1"
+			command "tapDown2"
+			command "tapDown3"
+			command "tapDown4"
+			command "tapDown5"
+			command "tapUp1"
+			command "tapUp2"
+			command "tapUp3"
+			command "tapUp4"
+			command "tapUp5"
+
 //zw:L type:1001 mfr:027A prod:A000 model:A001 ver:2.00 zwv:5.03 lib:03 cc:5E,25,85,8E,59,55,86,72,5A,73,70,5B,6C,9F,7A role:05 ff:8700 ui:8704
 
 	fingerprint mfr:"027A", prod:"A000", model:"A001", ver:"2.00", deviceJoinName: "Zooz Zen26 Switch v2"
@@ -70,6 +83,7 @@ metadata {
 		input "autoTurnon", "bool", title: "Auto On", description: "Light will automatically turn on after set time", required: false, defaultValue: false
 		input "offTimer", "number", title: "Off Timer", description: "Time in minutes to automatically turn off", required: false, defaultValue: 60, range: "1..65535"
 		input "onTimer", "number", title: "On Timer", description: "Time in minutes to automatically turn on", required: false, defaultValue: 60, range: "1..65535"
+		input "localControl", "bool", title: "Local Control", description: "Local paddle control enabled", required: false, defaultValue: true
 		input (
 					type: "paragraph",
 					element: "paragraph",
@@ -139,6 +153,7 @@ def installed() {
 	cmds << parmGet(6)
 	cmds << parmGet(8)
 	cmds << parmGet(10)
+	cmds << parmGet(11)
 	cmds << zwave.basicV1.basicSet(value: 0xFF).format()
 	// Device-Watch simply pings if no device events received for 32min(checkInterval)
 	sendEvent(name: "checkInterval", value: 2 * 15 * 60 + 2 * 60, displayed: false, data: [protocol: "zwave", hubHardwareId: device.hub.hardwareID])
@@ -146,7 +161,8 @@ def installed() {
 }
 
 def updated(){
-	// These are needed when parameter defaults are null or non-workable numbers. They are set to the device defaults
+	// These are needed as SmartThings is not honoring defaultValue in preferences. They are set to the device defaults
+	def setLocalControl = localControl == null ? 1 : localControl == true ? 1 : 0
 	def setOffTimer = 60
 	if (offTimer) {setOffTimer = offTimer}
 	def setOnTimer = 60
@@ -161,7 +177,8 @@ def updated(){
 		commands << zwave.switchMultilevelV1.switchMultilevelGet().format()
 	}
 	def setScene = sceneCtrl == true ? 1 : 0
-	def setPowerRestore = powerRestore == "prremember" ? 2 : powerRestore == "proff" ? 0 : 1
+	def setPowerRestore = 2
+	if (powerRestore) {setPowerRestore = powerRestore == "prremember" ? 2 : powerRestore == "proff" ? 0 : 1}
 	def setAutoTurnon = autoTurnon == true ? 1 : 0
 	def setAutoTurnoff = autoTurnoff == true ? 1 : 0
 	def setPaddleControl = 0
@@ -197,6 +214,12 @@ def updated(){
 			setLedIndicator = 0
 			break
 	}
+
+	if (setScene) {
+		sendEvent(name: "numberOfButtons", value: 10, displayed: false)
+	} else {
+		sendEvent(name: "numberOfButtons", value: 0, displayed: false)
+	}
 	
 	if (settings.requestedGroup2 != state.currentGroup2) {
 		nodes = parseAssocGroupList(settings.requestedGroup2, 2)
@@ -207,6 +230,7 @@ def updated(){
 	}
 	
 	//parmset takes the parameter number, it's size, and the value - in that order
+	commands << parmSet(11, 1, setLocalControl)
 	commands << parmSet(10, 1, setScene)
 	commands << parmSet(8, 1, setPowerRestore)
 	commands << parmSet(6, 4, setOnTimer)
@@ -216,6 +240,7 @@ def updated(){
 	commands << parmSet(2, 1, setLedIndicator)
 	commands << parmSet(1, 1, setPaddleControl)
 
+	commands << parmGet(11)
 	commands << parmGet(10)
 	commands << parmGet(8)
 	commands << parmGet(6)
@@ -260,7 +285,7 @@ def zwaveEvent(physicalgraph.zwave.commands.associationv2.AssociationReport cmd)
 	state.group3 = "1,2"
 	if (cmd.groupingIdentifier == 3) {
 		if (cmd.nodeId.contains(zwaveHubNodeId)) {
-			createEvent(name: "numberOfButtons", value: 2, displayed: false)
+			createEvent(name: "numberOfButtons", value: 10, displayed: false)
 		}
 		else {
 			sendEvent(name: "numberOfButtons", value: 0, displayed: false)
@@ -339,6 +364,10 @@ def zwaveEvent(physicalgraph.zwave.commands.configurationv1.ConfigurationReport 
 			name = "scene_control"
 			value = reportValue == 1 ? "true" : "false"
 			break
+		case 11:
+			name = "local_control"
+			value = reportValue == 1 ? "true" : "false"
+			break
 		default:
 			break
 	}
@@ -393,7 +422,7 @@ def off() {
 }
 
 def poll() {
-    log.debug "poll"
+	log.debug "poll"
 	delayBetween([
 		zwave.switchBinaryV1.switchBinaryGet().format(),
 		zwave.manufacturerSpecificV1.manufacturerSpecificGet().format()
@@ -404,12 +433,163 @@ def poll() {
   * PING is used by Device-Watch in attempt to reach the Device
 **/
 def ping() {
-    log.debug "ping"
-		refresh()
+	log.debug "ping"
+	refresh()
 }
 
+def zwaveEvent(physicalgraph.zwave.commands.centralscenev1.CentralSceneNotification cmd) {
+	def result = []
+	switch (cmd.sceneNumber) {
+		case 1:
+			// Down
+			switch (cmd.keyAttributes) {
+				case 0:
+					// Press Once
+						result += createEvent(tapDown1Response("physical"))
+						result += createEvent([name: "switch", value: "off", type: "physical"])
+						break
+					case 3: 
+						// 2 Times
+						result +=createEvent(tapDown2Response("physical"))
+						break
+					case 4:
+						// 3 times
+						result=createEvent(tapDown3Response("physical"))
+						break
+					case 5:
+						// 4 times
+						result=createEvent(tapDown4Response("physical"))
+						break
+					case 6:
+						// 5 times
+						result=createEvent(tapDown5Response("physical"))
+						break
+					default:
+						log.debug ("unexpected down press keyAttribute: $cmd.keyAttributes")
+				}
+				break
+		case 2:
+			// Up
+			switch (cmd.keyAttributes) {
+				case 0:
+					// Press Once
+					result += createEvent(tapUp1Response("physical"))
+					result += createEvent([name: "switch", value: "on", type: "physical"]) 
+					break
+				case 3: 
+					// 2 Times
+						result+=createEvent(tapUp2Response("physical"))
+					break
+				case 4:
+					// 3 Times
+					result=createEvent(tapUp3Response("physical"))
+					break
+				case 5:
+					// 4 Times
+					result=createEvent(tapUp4Response("physical"))
+					break
+				case 6:
+					// 5 Times
+					result=createEvent(tapUp5Response("physical"))
+					break
+				default:
+					log.debug ("unexpected up press keyAttribute: $cmd.keyAttributes")
+			}
+			break
+		default:
+			// unexpected case
+			log.debug ("unexpected scene: $cmd.sceneNumber")
+			log.debug ("unexpected scene: $cmd")
+	}
+}
+
+def buttonEvent(button, value) {
+	createEvent(name: "button", value: value, data: [buttonNumber: button], descriptionText: "$device.displayName button $button was $value", isStateChange: true)
+}
+
+def tapDown1Response(String buttonType) {
+	[name: "button", value: "pushed", data: [buttonNumber: "2"], descriptionText: "$device.displayName Tap-Down-1 (button 2) pressed", isStateChange: true, type: "$buttonType"]
+}
+
+def tapDown2Response(String buttonType) {
+	[name: "button", value: "pushed", data: [buttonNumber: "4"], descriptionText: "$device.displayName Tap-Down-2 (button 4) pressed", isStateChange: true, type: "$buttonType"]
+}
+
+def tapDown3Response(String buttonType) {
+	[name: "button", value: "pushed", data: [buttonNumber: "6"], descriptionText: "$device.displayName Tap-Down-3 (button 6) pressed", isStateChange: true, type: "$buttonType"]
+}
+
+def tapDown4Response(String buttonType) {
+	[name: "button", value: "pushed", data: [buttonNumber: "8"], descriptionText: "$device.displayName Tap-Down-4 (button 8) pressed", isStateChange: true, type: "$buttonType"]
+}
+
+def tapDown5Response(String buttonType) {
+	[name: "button", value: "pushed", data: [buttonNumber: "10"], descriptionText: "$device.displayName Tap-Down-5 (button 10) pressed", isStateChange: true, type: "$buttonType"]
+}
+
+def tapUp1Response(String buttonType) {
+	[name: "button", value: "pushed", data: [buttonNumber: "1"], descriptionText: "$device.displayName Tap-Up-1 (button 1) pressed", isStateChange: true, type: "$buttonType"]
+}
+
+def tapUp2Response(String buttonType) {
+	[name: "button", value: "pushed", data: [buttonNumber: "3"], descriptionText: "$device.displayName Tap-Up-2 (button 3) pressed", isStateChange: true, type: "$buttonType"]
+}
+
+def tapUp3Response(String buttonType) {
+	[name: "button", value: "pushed", data: [buttonNumber: "5"], descriptionText: "$device.displayName Tap-Up-3 (button 5) pressed", isStateChange: true, type: "$buttonType"]
+}
+
+def tapUp4Response(String buttonType) {
+	[name: "button", value: "pushed", data: [buttonNumber: "7"], descriptionText: "$device.displayName Tap-Up-4 (button 7) pressed", isStateChange: true, type: "$buttonType"]
+}
+
+def tapUp5Response(String buttonType) {
+	[name: "button", value: "pushed", data: [buttonNumber: "9"], descriptionText: "$device.displayName Tap-Up-5 (button 9) pressed", isStateChange: true, type: "$buttonType"]
+}
+
+def tapDown1() {
+	sendEvent(tapDown1Response("digital"))
+}
+
+def tapDown2() {
+	sendEvent(tapDown2Response("digital"))
+}
+
+def tapDown3() {
+	sendEvent(tapDown3Response("digital"))
+}
+
+def tapDown4() {
+	sendEvent(tapDown4Response("digital"))
+}
+
+def tapDown5() {
+	sendEvent(tapDown5Response("digital"))
+}
+
+def tapUp1() {
+	sendEvent(tapUp1Response("digital"))
+}
+
+def tapUp2() {
+	sendEvent(tapUp2Response("digital"))
+}
+
+def tapUp3() {
+	sendEvent(tapUp3Response("digital"))
+}
+
+def tapUp4() {
+	sendEvent(tapUp4Response("digital"))
+}
+
+def tapUp5() {
+	sendEvent(tapUp5Response("digital"))
+}
+
+
 def refresh() {
-    log.debug "refresh"
+	log.debug "refresh"
 	delayBetween([
 		zwave.switchBinaryV1.switchBinaryGet().format(),
 		zwave.manufacturerSpecificV1.manufacturerSpecificGet().format()
@@ -453,7 +633,7 @@ private parseAssocGroupList(list, group) {
 		def nodeList = list.split(',')
 		def max = group == 2 ? 5 : 4
 		def count = 0
-        log.debug "parsing"
+		log.debug "parsing asssociation"
 
 		nodeList.each { node ->
 			node = node.trim()
