@@ -5,6 +5,7 @@
  *  2018-10-27 - Initial release
  *  2018-11-18 - Typo in comments, fix parameter for timer
  *  2018-11-19 - Fix LED parameter for all values
+ *  2019-02-16 - Added association
  *
  *  Supported Command Classes
  *  
@@ -62,7 +63,19 @@ metadata {
 		input "ledIndicator", "enum", title: "LED Indicator", description: "When Off... ", options:["on": "When On", "off": "When Off", "never": "Never", "always": "Always"], defaultValue: "off"
 		input "invertSwitch", "bool", title: "Invert Switch", description: "Flip switch upside down", required: false, defaultValue: false
 		input "powerRestore", "enum", title: "After Power Restore", description: "State after power restore", options:["prremember": "Remember", "proff": "Off", "pron": "On"],defaultValue: "prremember",displayDuringSetup: false
-		input "offTimer", "number", title: "Off Timer", description: "Time in seconds to automatically turn off 0(disabled)-32768", required: false, defaultValue: 0, range: "0..32768"
+		input "offTimer", "number", title: "Off Timer", description: "Time in minutes to automatically turn off 0(disabled)-32768", required: false, defaultValue: 0, range: "0..32768"
+		input (
+					type: "paragraph",
+					element: "paragraph",
+					title: "Configure Association Groups:",
+					description: "Devices in association group 2 will receive Binary Switch commands directly from the switch when it is turned on or off. Use this to control another device as if it was connected to this switch.\n\n" +"Devices are entered as a comma delimited list of IDs in hexadecimal format."
+					)
+		input (
+					name: "requestedGroup2",
+					title: "Association Group 2 Members (Max of 5):",
+					type: "text",
+					required: false
+					)
   }
 
 	// tile definitions
@@ -129,6 +142,7 @@ def updated(){
 	def setPowerRestore = powerRestore == "prremember" ? 2 : powerRestore == "proff" ? 0 : 1
 	def setInvertSwitch = invertSwitch == true ? 1 : 0
 	def setLedIndicator = 0
+	def nodes = []
 	def commands = []
 	switch (ledIndicator) {
 		case "off":
@@ -147,6 +161,15 @@ def updated(){
 			setLedIndicator = 0
 			break
 	}
+	
+	if (settings.requestedGroup2 != state.currentGroup2) {
+		nodes = parseAssocGroupList(settings.requestedGroup2, 2)
+		commands << zwave.associationV2.associationRemove(groupingIdentifier: 2, nodeId: []).format()
+		commands << zwave.associationV2.associationSet(groupingIdentifier: 2, nodeId: nodes).format()
+		commands << zwave.associationV2.associationGet(groupingIdentifier: 2).format()
+		state.currentGroup2 = settings.requestedGroup2
+	}
+	
 	//parmset takes the parameter number, it's size, and the value - in that order
 	commands << parmSet(4, 1, setPowerRestore)
 	commands << parmSet(3, 2, setOffTimer)
@@ -180,11 +203,26 @@ def parse(String description) {
 // Removed because basic report gets automatically returned with every action as well as multilevel,
 //  so there is no physical/digital distinction
 def zwaveEvent(physicalgraph.zwave.commands.basicv1.BasicReport cmd) {
-//	[name: "switch", value: cmd.value ? "on" : "off", type: "physical"]
+	[name: "switch", value: cmd.value ? "on" : "off"]
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.basicv1.BasicSet cmd) {
-	[name: "switch", value: cmd.value ? "on" : "off", type: "physical"]
+	[name: "switch", value: cmd.value ? "on" : "off"]
+}
+
+def zwaveEvent(physicalgraph.zwave.commands.associationv2.AssociationReport cmd) {
+	log.debug "---ASSOCIATION REPORT V2--- ${device.displayName} sent groupingIdentifier: ${cmd.groupingIdentifier} maxNodesSupported: ${cmd.maxNodesSupported} nodeId: ${cmd.nodeId} reportsToFollow: ${cmd.reportsToFollow}"
+	state.group3 = "1,2"
+	if (cmd.groupingIdentifier == 3) {
+		if (cmd.nodeId.contains(zwaveHubNodeId)) {
+			createEvent(name: "numberOfButtons", value: 2, displayed: false)
+		}
+		else {
+			sendEvent(name: "numberOfButtons", value: 0, displayed: false)
+				sendHubCommand(new physicalgraph.device.HubAction(zwave.associationV2.associationSet(groupingIdentifier: 3, nodeId: zwaveHubNodeId).format()))
+				sendHubCommand(new physicalgraph.device.HubAction(zwave.associationV2.associationGet(groupingIdentifier: 3).format()))
+		}
+	}
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.switchbinaryv1.SwitchBinaryReport cmd) {
@@ -344,4 +382,38 @@ def zwaveEvent(physicalgraph.zwave.commands.versionv1.VersionCommandClassReport 
 	rcc = Integer.toHexString(cmd.requestedCommandClass.toInteger()).toString() 
 	log.debug "${rcc}"
 	if (cmd.commandClassVersion > 0) {log.debug "0x${rcc}_V${cmd.commandClassVersion}"}
+}
+
+private parseAssocGroupList(list, group) {
+	def nodes = group == 2 ? [] : [zwaveHubNodeId]
+ 	if (list) {
+		def nodeList = list.split(',')
+		def max = group == 2 ? 5 : 4
+		def count = 0
+        log.debug "parsing"
+
+		nodeList.each { node ->
+			node = node.trim()
+			if ( count >= max) {
+				log.warn "Association Group ${group}: Number of members is greater than ${max}! The following member was discarded: ${node}"
+			}
+			else if (node.matches("\\p{XDigit}+")) {
+				def nodeId = Integer.parseInt(node,16)
+				if (nodeId == zwaveHubNodeId) {
+					log.warn "Association Group ${group}: Adding the hub as an association is not allowed (it would break double-tap)."
+				}
+				else if ( (nodeId > 0) & (nodeId < 256) ) {
+					nodes << nodeId
+					count++
+				}
+				else {
+					log.warn "Association Group ${group}: Invalid member: ${node}"
+				}
+			}
+			else {
+				log.warn "Association Group ${group}: Invalid member: ${node}"
+			}
+		}
+	}
+ 	return nodes
 }
