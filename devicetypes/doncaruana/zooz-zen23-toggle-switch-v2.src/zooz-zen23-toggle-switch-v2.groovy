@@ -6,6 +6,7 @@
  *  2017-09-06 - Change color scheme to match new ST standard
  *  2017-09-08 - Remove extra basic report that firmware returns - no distinction between physical and digital
  *  2018-08-31 - Added Manufacturer ID and Vendor ID for new SmartThings connect app. Device settings not available. Will likely need update when new standards are published.
+ *  2019-07-12 - Changed fingerprint to be more distinctive vs v3.x
  *
  *  Supported Command Classes
  *  
@@ -37,7 +38,8 @@ metadata {
 
 //zw:L type:1001 mfr:027A prod:B111 model:251C ver:20.15 zwv:4.05 lib:06 cc:5E,86,72,5A,73,85,59,25,27,20,70 role:05 ff:9D00 ui:9D00
                                                      
-	fingerprint mfr:"027A", prod:"B111", model:"251C", deviceJoinName: "Zooz Zen23 Toggle v2"
+	fingerprint mfr:"027A", prod:"B111", model:"251C", ver:"1.05", deviceJoinName: "Zooz Zen23 Toggle v2"
+	fingerprint mfr:"027A", prod:"B111", model:"251C", ff:"9D00", deviceJoinName: "Zooz Zen23 Toggle v2"
 	fingerprint deviceId:"0x1001", inClusters: "0x5E,0x59,0x85,0x70,0x5A,0x72,0x73,0x27,0x25,0x86,0x20"
 	fingerprint cc: "0x5E,0x59,0x85,0x70,0x5A,0x72,0x73,0x27,0x25,0x86,0x20", mfr:"027A", prod:"B111", model:"251C", deviceJoinName: "Zooz Zen23 Toggle v2"
 	}
