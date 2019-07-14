@@ -128,7 +128,7 @@ def updated(){
 	def setOffTimer = 0
 	if (offTimer) {setOffTimer = offTimer}
 	def setPowerRestore = 2
-	if (powerRestore) {setPowerRestore = powerRestore == "prremember" ? 2 : powerRestore == "proff" ? 0 : 1}
+	if (powerRestore != null) {setPowerRestore = powerRestore == "prremember" ? 2 : powerRestore == "proff" ? 0 : 1}
 	def setInvertSwitch = invertSwitch == true ? 1 : 0
 	def setLedIndicator = 0
 	def commands = []
