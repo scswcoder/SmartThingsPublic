@@ -4,6 +4,7 @@
  *  2019-02-12 - Initial release
  *  2019-02-13 - Update for paddle control, added association capability
  *  2019-07-11 - Added all functions for firmware 3.01
+ *  2019-07-13 - Fix logic for null preferences
  *  
  *  Supported Command Classes
  *  
@@ -164,7 +165,8 @@ def installed() {
 
 def updated(){
 	// These are needed as SmartThings is not honoring defaultValue in preferences. They are set to the device defaults
-	def setLocalControl = localControl == null ? 1 : localControl == true ? 1 : 0
+	def setLocalControl = 1
+	if (localControl!=null) {setLocalControl = localControl == true ? 1 : 0}
 	def setOffTimer = 60
 	if (offTimer) {setOffTimer = offTimer}
 	def setOnTimer = 60
@@ -180,7 +182,7 @@ def updated(){
 	}
 	def setScene = sceneCtrl == true ? 1 : 0
 	def setPowerRestore = 2
-	if (powerRestore) {setPowerRestore = powerRestore == "prremember" ? 2 : powerRestore == "proff" ? 0 : 1}
+	if (powerRestore != null) {setPowerRestore = powerRestore == "prremember" ? 2 : powerRestore == "proff" ? 0 : 1}
 	def setAutoTurnon = autoTurnon == true ? 1 : 0
 	def setAutoTurnoff = autoTurnoff == true ? 1 : 0
 	def setPaddleControl = 0
