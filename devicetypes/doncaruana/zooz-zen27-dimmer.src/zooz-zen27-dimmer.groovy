@@ -187,7 +187,8 @@ def updated(){
 		commands << zwave.switchMultilevelV1.switchMultilevelGet().format()
 	}
 	def setDoubleTap = doubleTap == true ? 1 : 0
-	def setPowerRestore = powerRestore == "prremember" ? 2 : powerRestore == "proff" ? 0 : 1
+	def setPowerRestore = 2
+	if (powerRestore != null) {setPowerRestore = powerRestore == "prremember" ? 2 : powerRestore == "proff" ? 0 : 1}
 	def setAutoTurnon = autoTurnon == true ? 1 : 0
 	def setAutoTurnoff = autoTurnoff == true ? 1 : 0
 	def setInvertSwitch = invertSwitch == true ? 1 : 0
