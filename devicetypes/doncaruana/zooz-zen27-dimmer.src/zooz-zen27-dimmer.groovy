@@ -6,6 +6,7 @@
  * 2018-11-18 - Fixes for parameters due to platform changes
  * 2018-11-19 - Fix LED parameter for all values
  * 2019-02-16 - Added association
+ * 2019-07-13 - Fix logic for null preferences on power restore
  *
  *  Supported Command Classes
  *         Association v2
