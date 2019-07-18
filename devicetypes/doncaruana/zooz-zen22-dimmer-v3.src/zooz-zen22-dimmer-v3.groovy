@@ -4,6 +4,7 @@
  * Revision History:
  * 2019-02-17 - Initial release
  * 2019-07-12 - Added functionality for v3.01
+ * 2019-07-13 - Fixed null preference logic
  *
  *  Supported Command Classes
  *         Association v2
