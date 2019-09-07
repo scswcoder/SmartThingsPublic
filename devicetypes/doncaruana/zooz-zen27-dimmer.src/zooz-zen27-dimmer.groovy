@@ -7,6 +7,7 @@
  * 2018-11-19 - Fix LED parameter for all values
  * 2019-02-16 - Added association
  * 2019-07-13 - Fix logic for null preferences on power restore
+ * 2019-09-07 - Fix typo in auto turn off timer parameter setting
  *
  *  Supported Command Classes
  *         Association v2
@@ -229,7 +230,7 @@ def updated(){
 	commands << parmSet(6, 4, setOnTimer)
 	commands << parmSet(5, 1, setAutoTurnon)
 	commands << parmSet(4, 4, setOffTimer)
-	commands << parmSet(3, 1, setAutoTurnon)
+	commands << parmSet(3, 1, setAutoTurnoff)
 	commands << parmSet(2, 1, setLedIndicator)
 	commands << parmSet(1, 1, setInvertSwitch)
 
