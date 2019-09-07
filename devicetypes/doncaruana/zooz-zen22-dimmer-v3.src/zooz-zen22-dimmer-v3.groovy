@@ -5,6 +5,7 @@
  * 2019-02-17 - Initial release
  * 2019-07-12 - Added functionality for v3.01
  * 2019-07-13 - Fixed null preference logic
+ * 2019-09-07 - Fixed typo in auto off timer
  *
  *  Supported Command Classes
  *         Association v2
@@ -273,7 +274,7 @@ def updated(){
 	commands << parmSet(6, 4, setOnTimer)
 	commands << parmSet(5, 1, setAutoTurnon)
 	commands << parmSet(4, 4, setOffTimer)
-	commands << parmSet(3, 1, setAutoTurnon)
+	commands << parmSet(3, 1, setAutoTurnoff)
 	commands << parmSet(2, 1, setLedIndicator)
 	commands << parmSet(1, 1, setPaddleControl)
 
