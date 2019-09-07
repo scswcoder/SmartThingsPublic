@@ -5,6 +5,7 @@
  *  2019-02-13 - Update for paddle control, added association capability
  *  2019-07-11 - Added all functions for firmware 3.01
  *  2019-07-13 - Fix logic for null preferences
+ *  2019-09-07 - Fix typo in auto turn off timer parameter setting
  *  
  *  Supported Command Classes
  *  
@@ -240,7 +241,7 @@ def updated(){
 	commands << parmSet(6, 4, setOnTimer)
 	commands << parmSet(5, 1, setAutoTurnon)
 	commands << parmSet(4, 4, setOffTimer)
-	commands << parmSet(3, 1, setAutoTurnon)
+	commands << parmSet(3, 1, setAutoTurnoff)
 	commands << parmSet(2, 1, setLedIndicator)
 	commands << parmSet(1, 1, setPaddleControl)
 
