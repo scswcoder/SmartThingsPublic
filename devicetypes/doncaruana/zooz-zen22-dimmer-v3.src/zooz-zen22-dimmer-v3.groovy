@@ -7,6 +7,7 @@
  * 2019-07-13 - Fixed null preference logic
  * 2019-09-07 - Fixed typo in auto off timer
  * 2019-10-12 - Updated with new device parameters
+ * 2019-11-11 - Updated with latest device parameters, changed handling of double tap
  *
  *  Supported Command Classes
  *         Association v2
@@ -29,7 +30,7 @@
  *      5    1 Auto Turn-On                                  0 (Default)-Timer disabled, 1-Timer enabled; Set time in parameter 6
  *      6    4 Turn-on Timer                                 60 (Default)-Time in minutes after turning off to automatically turn on (1-65535 minutes)
  *      8    1 Power Restore                                 2 (Default)-Remember state from pre-power failure, 0-Off after power restored, 1-On after power restore
- *      9    1 Physical Ramp Rate Control                    1 (Default)-Ramp rate in seconds to reach full brightness or off (1-99 seconds)
+ *      9    1 Physical Ramp Rate Control                    0 (Default)-Ramp rate in seconds to reach full brightness or off (1-99 seconds)
  *     10    1 Minimum Brightness                            1 (Default)-Minimum brightness that light will set (1-99%)
  *     11    1 Maximum Brightness                            99 (Default)-Maximum brightness that light will set (1-99%)
  *     12    1 Double Tap                                    0 (Default)-Light will go to full brightness with double tap, 1-light will go to max set in Parameter 11 with double tap 
@@ -92,11 +93,10 @@ metadata {
 	preferences {
 		input "ledIndicator", "enum", title: "LED Indicator", description: "When Off... ", options:["on": "When On", "off": "When Off", "never": "Never", "always": "Always"], defaultValue: "off"
 		input "paddleControl", "enum", title: "Paddle Control", description: "Standard, Inverted, or Toggle", options:["std": "Standard", "invert": "Invert", "toggle": "Toggle"], defaultValue: "std"
-		input "rampRate", "number", title: "Ramp Rate", description: "Seconds to reach full brightness (1-99)", required: false, defaultValue: 1, range: "1..99"
+		input "rampRate", "number", title: "Ramp Rate", description: "Seconds to reach full brightness (0-99)", required: false, defaultValue: 1, range: "0..99"
 		input "powerRestore", "enum", title: "After Power Restore", description: "State after power restore", options:["prremember": "Remember", "proff": "Off", "pron": "On"],defaultValue: "prremember",displayDuringSetup: false
 		input "sceneCtrl", "bool", title: "Scene Control", description: "Enable scene control", required: false, defaultValue: false
-		input "doubleTap", "bool", title: "Double Tap", description: "Double Tap limited to max set", required: false, defaultValue: false
-		input "doubleTapDisable", "enum", title: "Double Tap Disable", description: "Max/Full, Single to last, single to max/full", options:["std": "Max/Full", "singleLast": "Single Last", "singleMax": "Single Max"], defaultValue: "std"
+		input "doubleTap", "enum", title: "Double Tap Behavior", description: "Double/Single Tap behavior", options:["tap2full":"Double Tap to Full brightness", "tap2max": "Double Tap to Custom Max brightness", "tap1last": "Double Tap disabled, Single tap to last brightness", "tap1max" : "Double Tap disabled, Single tap to full brightness"],defaultValue: "tap1full",displayDuringSetup: false
 		input "autoTurnoff", "bool", title: "Auto Off", description: "Light will automatically turn off after set time", required: false, defaultValue: false
 		input "autoTurnon", "bool", title: "Auto On", description: "Light will automatically turn on after set time", required: false, defaultValue: false
 		input "offTimer", "number", title: "Off Timer", description: "Time in minutes to automatically turn off", required: false, defaultValue: 60, range: "1..65535"
@@ -211,7 +211,30 @@ def updated(){
 		commands << zwave.switchMultilevelV1.switchMultilevelGet().format()
 	}
 	def setScene = sceneCtrl == true ? 1 : 0
-	def setDoubleTap = doubleTap == true ? 1 : 0
+	def setDoubleTap = 0
+	def setDtapDisable = 0
+	switch (doubleTap) {
+		case "tap2full":
+			setDoubleTap = 0
+			setDtapDisable = 0
+			break
+		case "tap2max":
+			setDoubleTap = 1
+			setDtapDisable = 0
+			break
+		case "tap2max":
+			setDoubleTap = 0
+			setDtapDisable = 1
+			break
+		case "tap1last":
+			setDoubleTap = 0
+			setDtapDisable = 2
+			break
+		case "default":
+			setDoubleTap = 0
+			setDtapDisable = 0
+			break
+	}
 	def setPowerRestore = 2
 	if (powerRestore != null) {setPowerRestore = powerRestore == "prremember" ? 2 : powerRestore == "proff" ? 0 : 1}
 	def setAutoTurnon = autoTurnon == true ? 1 : 0
@@ -249,21 +272,6 @@ def updated(){
 				state.dimDuration = 0
 				break
 		}
-	}
-	def setDtapDisable = 0
-	switch (doubleTapDisable) {
-		case "std":
-			setDtapDisable = 0
-			break
-		case "singleLast":
-			setDtapDisable = 1
-			break
-		case "singleMax":
-			setDtapDisable = 2
-			break
-		default:
-			setDtapDisable = 0
-			break
 	}
 	def setLedIndicator = 0
 	switch (ledIndicator) {
@@ -367,6 +375,9 @@ def parse(String description) {
 	if (description.indexOf('command: 2603, payload: 63 63 00') > -1) {
 		description = description.replaceAll('payload: 63 63 00','payload: 64 64 00')
 	}
+	if (description.indexOf('command: 2003, payload: 63') > -1) {
+		description = description.replaceAll('payload: 63','payload: 64')
+	}
 	if (description != "updated") {
 		log.debug "parse() >> zwave.parse($description)"
 		def cmd = zwave.parse(description, commandClassVersions)
@@ -406,11 +417,11 @@ def zwaveEvent(physicalgraph.zwave.commands.associationv2.AssociationReport cmd)
 	}
 }
 
-def zwaveEvent(physicalgraph.zwave.commands.switchmultilevelv1.SwitchMultilevelReport cmd) {
+def zwaveEvent(physicalgraph.zwave.commands.switchmultilevelv2.SwitchMultilevelReport cmd) {
 	dimmerEvents(cmd)
 }
 
-def zwaveEvent(physicalgraph.zwave.commands.switchmultilevelv1.SwitchMultilevelSet cmd) {
+def zwaveEvent(physicalgraph.zwave.commands.switchmultilevelv2.SwitchMultilevelSet cmd) {
 	dimmerEvents(cmd)
 }
 
@@ -632,7 +643,7 @@ def poll() {
  * PING is used by Device-Watch in attempt to reach the Device
  * */
 def ping() {
-	refresh()
+    refresh()
 }
 
 def refresh() {
