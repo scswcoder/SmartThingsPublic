@@ -6,6 +6,7 @@
  * 2019-05-05 - Added all functions for firmware 2.01
  * 2019-07-11 - Fix for SmartThings not honoring defaultValue in preferences and leaving preference value as null unless explicitly set
  * 2019-09-07 - Fix typo in auto turn off timer parameter setting
+ * 2019-11-16 - Updated with latest device parameters, changed handling of double tap
  *
  *  Supported Command Classes
  *         Association v2
@@ -20,7 +21,6 @@
  *         Switch_multilevel
  *         Version v2
  *         ZWavePlus Info v2
- 
  *  
  *   Parm Size Description                                   Value
  *      1    1 Paddle Control                                0 (Default)-Upper paddle turns light on, 1-Lower paddle turns light on, 2-either paddle toggles on/off
@@ -30,13 +30,16 @@
  *      5    1 Auto Turn-On                                  0 (Default)-Timer disabled, 1-Timer enabled; Set time in parameter 6
  *      6    4 Turn-on Timer                                 60 (Default)-Time in minutes after turning off to automatically turn on (1-65535 minutes)
  *      8    1 Power Restore                                 2 (Default)-Remember state from pre-power failure, 0-Off after power restored, 1-On after power restore
- *      9    1 Ramp Rate Control                             1 (Default)-Ramp rate in seconds to reach full brightness or off (1-99 seconds)
+ *      9    1 Physical Ramp Rate Control                    0 (Default)-Ramp rate in seconds to reach full brightness or off (1-99 seconds)
  *     10    1 Minimum Brightness                            1 (Default)-Minimum brightness that light will set (1-99%)
  *     11    1 Maximum Brightness                            99 (Default)-Maximum brightness that light will set (1-99%)
  *     12    1 Double Tap                                    0 (Default)-Light will go to full brightness with double tap, 1-light will go to max set in Parameter 11 with double tap
  *     13    1 Scene Control                                 0 (Default)-Scene control disabled, 1-Scene control enabled
  *     14    1 Disable Double Tap                            0 (Default)-Double tap to full/max brightness, 1-double tap disabled-single tap to last brightness, 2-double tap disable-single tap to full/max brightness
- *     15    1 Disable Paddle                                1 (Default)-Paddle is used for local control, 0-Paddle single tap disabled
+ *     15    1 Disable Paddle                                1 (Default)-Paddle is used for local control, 0-Paddle single tap disabled, 2-Disable all control of switch
+ *     16    1 Physical Dimming Speed                        4 (Default)-Time in seconds to from 0 to 100% brightness, 1-99-dimming time
+ *     17    1 Zwave Ramp Type                               1 (Default)-Zwave ramp speed set through command class, 0-Zwave ramp speed matches parameter 9
+ *     18    1 Default Brightness                            0 (Default)-Last brightness level, 1-99-custom brightness level
  */
 
 metadata {
@@ -92,18 +95,22 @@ metadata {
 	preferences {
 		input "ledIndicator", "enum", title: "LED Indicator", description: "When Off... ", options:["on": "When On", "off": "When Off", "never": "Never", "always": "Always"], defaultValue: "off"
 		input "paddleControl", "enum", title: "Paddle Control", description: "Standard, Inverted, or Toggle", options:["std": "Standard", "invert": "Invert", "toggle": "Toggle"], defaultValue: "std"
-		input "rampRate", "number", title: "Ramp Rate", description: "Seconds to reach full brightness (1-99)", required: false, defaultValue: 1, range: "1..99"
+		input "rampRate", "number", title: "Ramp Rate", description: "Seconds to reach full brightness (0-99)", required: false, defaultValue: 1, range: "0..99"
 		input "powerRestore", "enum", title: "After Power Restore", description: "State after power restore", options:["prremember": "Remember", "proff": "Off", "pron": "On"],defaultValue: "prremember",displayDuringSetup: false
 		input "sceneCtrl", "bool", title: "Scene Control", description: "Enable scene control", required: false, defaultValue: false
-		input "doubleTap", "bool", title: "Double Tap", description: "Double Tap limited to max set", required: false, defaultValue: false
-		input "doubleTapDisable", "enum", title: "Double Tap Disable", description: "Max/Full, Single to last, single to max/full", options:["std": "Max/Full", "singleLast": "Single Last", "singleMax": "Single Max"], defaultValue: "std"
+		input "doubleTap", "enum", title: "Double Tap Behavior", description: "Double/Single Tap behavior", options:["tap2full":"Double Tap to Full brightness", "tap2max": "Double Tap to Custom Max brightness", "tap1last": "Double Tap disabled, Single tap to last brightness", "tap1max" : "Double Tap disabled, Single tap to full brightness"],defaultValue: "tap1full",displayDuringSetup: false
 		input "autoTurnoff", "bool", title: "Auto Off", description: "Light will automatically turn off after set time", required: false, defaultValue: false
 		input "autoTurnon", "bool", title: "Auto On", description: "Light will automatically turn on after set time", required: false, defaultValue: false
 		input "offTimer", "number", title: "Off Timer", description: "Time in minutes to automatically turn off", required: false, defaultValue: 60, range: "1..65535"
 		input "onTimer", "number", title: "On Timer", description: "Time in minutes to automatically turn on", required: false, defaultValue: 60, range: "1..65535"
 		input "maxBright", "number", title: "Maximum Brightness", description: "Maximum brightness that the light can go to", required: false, defaultValue: 99, range: "1..99"
 		input "minBright", "number", title: "Minimum Brightness", description: "Minimum brightness that the light can go to", required: false, defaultValue: 1, range: "1..99"
-		input "localControl", "bool", title: "Local Control", description: "Local paddle control enabled", required: false, defaultValue: true
+		input "physDefBright", "number", title: "Physical On Brightness", description: "0 for last level or 1-99", required: false, defaultValue: 0, range: "0..99"
+		input "localControl", "enum", title: "Local Control", description: "Local paddle control enabled", options:["lcOn": "Local and Zwave On/Off enabled", "lcOff": "Disable local control", "lcAllOff": "Local and Zwave On/Off disabled"], defaultValue: "lcOn",displayDuringSetup: false
+		input "physDimspeed", "number", title: "Physical Dimming Speed", description: "Dimming time from 0 to 99", required: false, defaultValue: 4, range: "1..99"
+		input "zwaveOntype", "enum", title: "Zwave Ramp Rate Control", description: "Software Controlled", options:["zwcontrolphys": "Matches Physical Rate", "zwcontrollog": "Controlled by Ramp Type and Ramp Rate parameters"], required: false, defaultValue: zwcontrollog
+		input "zwaveramptype","enum",title: "Zwave Ramp Type", description: "Instant, Seconds, Minutes, Switch Default", options:["zwinstant": "Instant", "zwsec": "Seconds", "zwmin": "Minutes", "zwdef" : "Default"],defaultValue: "zwdef",displayDuringSetup: false
+		input "zwaverampspeed", "number", title: "Zwave Ramp Rate", description: "Time in seconds or minutes to reach brightness setting (as set in Zwave Ramp Type)", required: false, defaultValue: 4, range: "1..127"
 		input (
 					type: "paragraph",
 					element: "paragraph",
@@ -166,6 +173,10 @@ def installed() {
 	cmds << parmGet(13)
 	cmds << parmGet(14)
 	cmds << parmGet(15)
+	cmds << parmGet(16)
+	cmds << parmGet(17)
+	cmds << parmGet(18)
+
 
 	def level = 99
 	cmds << zwave.basicV1.basicSet(value: level).format()
@@ -175,8 +186,15 @@ def installed() {
 
 def updated(){
 	// These are needed as SmartThings is not honoring defaultValue in preferences. They are set to the device defaults
+
+	def setPhysDefBright = 0
+	if (physDefBright) {setPhysDefBright = physDefBright}
+	def setPhysdimspeed = 4
+	if (physDimspeed) {setPhysdimspeed = physDimspeed}
+	def setZwaveontype = 1
+	if (zwaveOntype!=null) {setZwaveontype = zwaveOntype == "zwcontrollog" ? 1 : 0}
 	def setLocalControl = 1
-	if (localControl!=null) {setLocalControl = localControl == true ? 1 : 0}
+	if (localControl!=null) {setLocalControl = localControl == "lcOn" ? 1 : localControl == "lcOff" ? 0 : 2}
 	def setOffTimer = 60
 	if (offTimer) {setOffTimer = offTimer}
 	def setOnTimer = 60
@@ -187,8 +205,6 @@ def updated(){
 	if (maxBright) {setMaxBright = maxBright}
 	def setMinBright = 1
 	if (minBright) {setMinBright = minBright}
-	def setPowerRestore = 2
-	if (powerRestore != null) {setPowerRestore = powerRestore == "prremember" ? 2 : powerRestore == "proff" ? 0 : 1}
 
 	def nodes = []
 	def commands = []
@@ -200,10 +216,34 @@ def updated(){
 		commands << zwave.switchMultilevelV1.switchMultilevelGet().format()
 	}
 	def setScene = sceneCtrl == true ? 1 : 0
-	def setDoubleTap = doubleTap == true ? 1 : 0
+	def setDoubleTap = 0
+	def setDtapDisable = 0
+	switch (doubleTap) {
+		case "tap2full":
+			setDoubleTap = 0
+			setDtapDisable = 0
+			break
+		case "tap2max":
+			setDoubleTap = 1
+			setDtapDisable = 0
+			break
+		case "tap2max":
+			setDoubleTap = 0
+			setDtapDisable = 1
+			break
+		case "tap1last":
+			setDoubleTap = 0
+			setDtapDisable = 2
+			break
+		default:
+			setDoubleTap = 0
+			setDtapDisable = 0
+			break
+	}
+	def setPowerRestore = 2
+	if (powerRestore != null) {setPowerRestore = powerRestore == "prremember" ? 2 : powerRestore == "proff" ? 0 : 1}
 	def setAutoTurnon = autoTurnon == true ? 1 : 0
 	def setAutoTurnoff = autoTurnoff == true ? 1 : 0
-	def setDtapDisable = 0
 	def setPaddleControl = 0
 	def setLedIndicator = 0
 	switch (paddleControl) {
@@ -220,19 +260,24 @@ def updated(){
 			setPaddleControl = 0
 			break
 	}
-	switch (doubleTapDisable) {
-		case "std":
-			setDtapDisable = 0
-			break
-		case "singleLast":
-			setDtapDisable = 1
-			break
-		case "singleMax":
-			setDtapDisable = 2
-			break
-		default:
-			setDtapDisable = 0
-			break
+	def setZwRType = zwdef
+	if (zwaveramptype != null) {setZwRType = zwaveramptype}
+	state.dimDuration = 255
+	if (zwaverampspeed != null && setZwaveontype == 1) {
+		switch (setZwRType) {
+			case "zwdef":
+				state.dimDuration = 255
+				break
+			case "zwsec":
+				state.dimDuration = zwaverampspeed
+				break
+			case "zwmin":
+				state.dimDuration = zwaverampspeed + 127
+				break
+			case "zwinstant":
+				state.dimDuration = 0
+				break
+		}
 	}
 	switch (ledIndicator) {
 		case "off":
@@ -268,6 +313,9 @@ def updated(){
 	}
 	
 	//parmset takes the parameter number, it's size, and the value - in that order
+	commands << parmSet(18, 1, setPhysDefBright)
+	commands << parmSet(17, 1, setZwaveontype)
+	commands << parmSet(16, 1, setPhysdimspeed)
 	commands << parmSet(15, 1, setLocalControl)
 	commands << parmSet(14, 1, setDtapDisable)
 	commands << parmSet(13, 1, setScene)
@@ -283,6 +331,9 @@ def updated(){
 	commands << parmSet(2, 1, setLedIndicator)
 	commands << parmSet(1, 1, setPaddleControl)
 
+	commands << parmGet(18)
+	commands << parmGet(17)
+	commands << parmGet(16)
 	commands << parmGet(15)
 	commands << parmGet(14)
 	commands << parmGet(13)
@@ -312,7 +363,7 @@ private getCommandClassVersions() {
 		0x73: 1,  // Powerlevel
 		0x86: 1,  // Version
 		0x5E: 2,  // ZwaveplusInfo
-		0x26: 1,  // Multilevel Switch
+		0x26: 2,  // Multilevel Switch
 		0x70: 1,  // Configuration
 		0x55: 1,  // Transport Service
 		0x6C: 1,  // Supervision
@@ -372,11 +423,11 @@ def zwaveEvent(physicalgraph.zwave.commands.associationv2.AssociationReport cmd)
 	}
 }
 
-def zwaveEvent(physicalgraph.zwave.commands.switchmultilevelv1.SwitchMultilevelReport cmd) {
+def zwaveEvent(physicalgraph.zwave.commands.switchmultilevelv2.SwitchMultilevelReport cmd) {
 	dimmerEvents(cmd)
 }
 
-def zwaveEvent(physicalgraph.zwave.commands.switchmultilevelv1.SwitchMultilevelSet cmd) {
+def zwaveEvent(physicalgraph.zwave.commands.switchmultilevelv2.SwitchMultilevelSet cmd) {
 	dimmerEvents(cmd)
 }
 
@@ -504,6 +555,18 @@ def zwaveEvent(physicalgraph.zwave.commands.configurationv1.ConfigurationReport 
 			name = "local_control"
 			value = reportValue == 1 ? "true" : "false"
 			break
+		case 16:
+			name = "man_dim_speed"
+			value = reportValue
+			break
+		case 17:
+			name = "zwave_ramp_type"
+			value = reportValue == 1 ? "command" : "parm9"
+			break
+		case 18:
+			name = "def_brightness"
+			value = reportValue
+			break
 		default:
 			break
 	}
@@ -547,15 +610,22 @@ def zwaveEvent(physicalgraph.zwave.Command cmd) {
 }
 
 def on() {
+// value of 255 restores previous brightness level
+	def level = 255
+	def dimmingDuration = state.dimDuration
+    log.debug "dimmingDuration: $dimmingDuration"
 	delayBetween([
-			zwave.basicV1.basicSet(value: 0xFF).format(),
+			zwave.switchMultilevelV2.switchMultilevelSet(value: level, dimmingDuration: dimmingDuration).format(),
 			zwave.switchMultilevelV1.switchMultilevelGet().format()
 	],2000)
 }
 
 def off() {
+	def level = 0
+	def dimmingDuration = state.dimDuration
+    log.debug "dimmingDuration: $dimmingDuration"
 	delayBetween([
-			zwave.basicV1.basicSet(value: 0x00).format(),
+			zwave.switchMultilevelV2.switchMultilevelSet(value: level, dimmingDuration: dimmingDuration).format(),
 			zwave.switchMultilevelV1.switchMultilevelGet().format()
 	],2000)
 }
