@@ -54,6 +54,9 @@ The full list of parameters are here:
 <tr><td>13</td><td>Scene Control</td><td>0</td><td>0-Scene control disabled, 1-Scene control enabled</td></tr>
 <tr><td>14</td><td>Disable Double Tap</td><td>0</td><td>0-Double tap to full/max brightness, 1-double tap disabled-single tap to last brightness, 2-double tap disable-single tap to full/max brightness</td></tr>
 <tr><td>15</td><td>Local Control</td><td>1</td><td>0-Local control disabled, 1-Local control enabled</td></tr>
+<tr><td>16</td><td>Physical Dimming Speed</td><td>4</td><td>Time in seconds to go from 0 to 100%, 1-99 dimming time</td></tr>
+<tr><td>17</td><td>Zwave Ramp Type</td><td>1</td><td>1-Zwave ramp speed set through command class, 0-Zwave ramp speed matches parameter 9</td></tr>
+<tr><td>18</td><td>Default Brightness</td><td>0</td><td>0-Last brightness level, 1-99-custom brightness level</td></tr>
 </table>
 
 The handler code is here: https://github.com/doncaruana/SmartThings-doncaruana/blob/master/devicetypes/doncaruana/zooz-zen22-dimmer-v3.src/zooz-zen22-dimmer-v3.groovy
