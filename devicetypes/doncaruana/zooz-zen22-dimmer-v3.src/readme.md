@@ -47,7 +47,7 @@ The full list of parameters are here:
 <tr><td>5</td><td>Auto Turn-On</td><td>0</td><td>0-Timer disabled, 1-Timer enabled; Set time in parameter</td></tr>
 <tr><td>6</td><td>Turn-on Timer</td><td>60</td><td>60-Time in minutes after turning off to automatically turn on (1-65535 minutes)</td></tr>
 <tr><td>8</td><td>Power Restore</td><td>2</td><td>2-Remember state from pre-power failure, 0-Off after power restored, 1-On after power restore</td></tr>
-<tr><td>9</td><td>Ramp Rate</td><td>1</td><td>Ramp rate in seconds to reach full brightness or off (1-99 seconds)</td></tr>
+<tr><td>9</td><td>Ramp Rate</td><td>1</td><td>Ramp rate in seconds to reach full brightness or off (0-99 seconds)</td></tr>
 <tr><td>10</td><td>Minimum Brightness</td><td>1</td><td>Minimum brightness that light will set (1-99%)</td></tr>
 <tr><td>11</td><td>Maximum Brightness</td><td>99</td><td>Maximum brightness that light will set (1-99%)</td></tr>
 <tr><td>12</td><td>Double Tap</td><td>0</td><td>0-Full brightness with double tap, 1-Double tap goes to max set in Parameter 11 with double tap</td></tr>
