@@ -8,6 +8,7 @@
  * 2019-09-07 - Fixed typo in auto off timer
  * 2019-10-12 - Updated with new device parameters
  * 2019-11-11 - Updated with latest device parameters, changed handling of double tap
+ * 2019-11-16 - Add config reads, some cleanup
  *
  *  Supported Command Classes
  *         Association v2
@@ -173,16 +174,16 @@ def installed() {
 	cmds << parmGet(15)
 	cmds << parmGet(16)
 	cmds << parmGet(17)
+	cmds << parmGet(18)
 
 	def level = 99
 	cmds << zwave.basicV1.basicSet(value: level).format()
-    cmds << zwave.switchMultilevelV1.switchMultilevelGet().format()
+	cmds << zwave.switchMultilevelV1.switchMultilevelGet().format()
 	return response(delayBetween(cmds,200))
 }
 
 def updated(){
 	// These are needed as SmartThings is not honoring defaultValue in preferences. They are set to the device defaults
-
 	def setPhysDefBright = 0
 	if (physDefBright) {setPhysDefBright = physDefBright}
 	def setPhysdimspeed = 4
@@ -230,7 +231,7 @@ def updated(){
 			setDoubleTap = 0
 			setDtapDisable = 2
 			break
-		case "default":
+		default:
 			setDoubleTap = 0
 			setDtapDisable = 0
 			break
@@ -549,6 +550,18 @@ def zwaveEvent(physicalgraph.zwave.commands.configurationv1.ConfigurationReport 
 			name = "local_control"
 			value = reportValue == 1 ? "true" : "false"
 			break
+		case 16:
+			name = "man_dim_speed"
+			value = reportValue
+			break
+		case 17:
+			name = "zwave_ramp_type"
+			value = reportValue == 1 ? "command" : "parm9"
+			break
+		case 18:
+			name = "def_brightness"
+			value = reportValue
+			break
 		default:
 			break
 	}
@@ -595,7 +608,7 @@ def on() {
 // value of 255 restores previous brightness level
 	def level = 255
 	def dimmingDuration = state.dimDuration
-    log.debug "dimmingDuration: $dimmingDuration"
+	log.debug "dimmingDuration: $dimmingDuration"
 	delayBetween([
 			zwave.switchMultilevelV2.switchMultilevelSet(value: level, dimmingDuration: dimmingDuration).format(),
 			zwave.switchMultilevelV1.switchMultilevelGet().format()
@@ -605,7 +618,7 @@ def on() {
 def off() {
 	def level = 0
 	def dimmingDuration = state.dimDuration
-    log.debug "dimmingDuration: $dimmingDuration"
+	log.debug "dimmingDuration: $dimmingDuration"
 	delayBetween([
 			zwave.switchMultilevelV2.switchMultilevelSet(value: level, dimmingDuration: dimmingDuration).format(),
 			zwave.switchMultilevelV1.switchMultilevelGet().format()
