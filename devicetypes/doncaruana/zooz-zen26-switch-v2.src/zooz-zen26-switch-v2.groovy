@@ -105,8 +105,6 @@ metadata {
 	tiles(scale: 2) {
 		multiAttributeTile(name:"switch", type: "lighting", width: 6, height: 4, canChangeIcon: true){
 			tileAttribute ("device.switch", key: "PRIMARY_CONTROL") {
-//				attributeState "on", label:'${name}', action:"switch.off", icon:"st.switches.light.on", backgroundColor:"#00a0dc"
-//				attributeState "off", label:'${name}', action:"switch.on", icon:"st.switches.light.off", backgroundColor:"#ffffff"
 				attributeState "on", label:'${name}', action:"switch.off", icon:"st.switches.light.on", backgroundColor:"#00a0dc", nextState:"turningOff"
 				attributeState "off", label:'${name}', action:"switch.on", icon:"st.switches.light.off", backgroundColor:"#ffffff", nextState:"turningOn"
 				attributeState "turningOn", label:'${name}', action:"switch.off", icon:"st.switches.light.on", backgroundColor:"#00a0dc", nextState:"on"
@@ -263,7 +261,6 @@ private getCommandClassVersions() {
 }
 
 
-
 def parse(String description) {
 	def result = null
 	def cmd = zwave.parse(description, commandClassVersions)
@@ -380,7 +377,7 @@ def zwaveEvent(physicalgraph.zwave.commands.configurationv1.ConfigurationReport 
 				default:
 					break
 			}
-            break
+			break
 		case 10:
 			name = "scene_control"
 			value = reportValue == 1 ? "true" : "false"
@@ -462,7 +459,6 @@ def refresh() {
 		}
 	commands << zwave.switchMultilevelV1.switchMultilevelGet().format()
 	delayBetween(commands,100)
-//	commandclasscapability()
 }
 
 
@@ -643,7 +639,6 @@ def zwaveEvent(physicalgraph.zwave.commands.versionv1.VersionCommandClassReport 
 //	log.debug "version: ${cmd.commandClassVersion}"
 //	log.debug "class: ${cmd.requestedCommandClass}"
 	rcc = Integer.toHexString(cmd.requestedCommandClass.toInteger()).toString() 
-//	log.debug "${rcc}"
 //	log.debug "class: ${rcc}-${cmd.requestedCommandClass}, version: ${cmd.commandClassVersion}"
 	if (cmd.commandClassVersion > 0) {log.debug "0x${rcc}: V${cmd.commandClassVersion}"}
 }	
