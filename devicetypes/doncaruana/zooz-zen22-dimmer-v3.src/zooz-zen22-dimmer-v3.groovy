@@ -8,20 +8,27 @@
  * 2019-09-07 - Fixed typo in auto off timer
  * 2019-10-12 - Updated with new device parameters
  * 2019-11-11 - Updated with latest device parameters, changed handling of double tap
- * 2019-11-16 - Add config reads, some cleanup
+ * 2019-12-07 - Fix for parm config report (no impact), updated supported command class versions
  *
  *  Supported Command Classes
- *         Association v2
- *         Association Group Information
- *         Central Scene
- *         Configuration
- *         Device Reset Local
- *         Manufacturer Specific v2
- *         Powerlevel
- *         Switch_all
- *         Switch_multilevel
- *         Version v2
- *         ZWavePlus Info v2
+ *   V2: Association
+ *   V1: Association Group Information (AGI)
+ *   V2: Basic   (ST Max V1)
+ *   V3: Central Scene   (ST Max V1)
+ *   V1: Configuration
+ *   V1: Configuration
+ *   V1: Device Reset Locally
+ *   V4: Firmware Update Meta Data   (ST Max V2)
+ *   V4: Firmware Update Meta Data   (ST Max V2)
+ *   V2: Manufacturer Specific
+ *   V3: Multi Channel Association   (ST Max V2)
+ *   V4: Multilevel Switch   (ST Max V3)
+ *   V1: Powerlevel
+ *   V1: Security 2
+ *   V1: Supervision
+ *   V2: Transport Service   (ST Max V1)
+ *   V3: Version   (ST Max V1)
+ *   V2: Z-Wave Plus Info
  *  
  *   Parm Size Description                                   Value
  *      1    1 Paddle Control                                0 (Default)-Upper paddle turns light on, 1-Lower paddle turns light on, 2-either paddle toggles on/off
@@ -178,7 +185,7 @@ def installed() {
 
 	def level = 99
 	cmds << zwave.basicV1.basicSet(value: level).format()
-	cmds << zwave.switchMultilevelV1.switchMultilevelGet().format()
+	cmds << zwave.switchMultilevelV3.switchMultilevelGet().format()
 	return response(delayBetween(cmds,200))
 }
 
@@ -209,7 +216,7 @@ def updated(){
 		commands << mfrGet()
 		commands << zwave.versionV1.versionGet().format()
 		commands << zwave.basicV1.basicSet(value: level).format()
-		commands << zwave.switchMultilevelV1.switchMultilevelGet().format()
+		commands << zwave.switchMultilevelV3.switchMultilevelGet().format()
 	}
 	def setScene = sceneCtrl == true ? 1 : 0
 	def setDoubleTap = 0
@@ -350,23 +357,24 @@ def updated(){
 
 private getCommandClassVersions() {
 	[
-		0x59: 1,  // AssociationGrpInfo
 		0x85: 2,  // Association
-		0x5B: 1,  // Central Scene
-		0x5A: 1,  // DeviceResetLocally
-		0x72: 2,  // ManufacturerSpecific
-		0x73: 1,  // Powerlevel
-		0x86: 1,  // Version
-		0x5E: 2,  // ZwaveplusInfo
-		0x26: 2,  // Multilevel Switch
-		0x70: 1,  // Configuration
-		0x55: 1,  // Transport Service
-		0x6C: 1,  // Supervision
-		0x7A: 1,  // Firmware Update Metadata
-		0x8E: 1,  // Multi Channel Association
-		0x9F: 1,  // S2
+		0x59: 1,  // Association Group Information (AGI)
 		0x20: 1,  // Basic
-		0x27: 1,  // All Switch
+		0x5b: 1,  // Central Scene
+		0x70: 2,  // Configuration
+		0x70: 2,  // Configuration
+		0x5a: 1,  // Device Reset Locally
+		0x7a: 2,  // Firmware Update Meta Data
+		0x7a: 2,  // Firmware Update Meta Data
+		0x72: 2,  // Manufacturer Specific
+		0x8e: 2,  // Multi Channel Association
+		0x26: 3,  // Multilevel Switch
+		0x73: 1,  // Powerlevel
+		0x9f: 1,  // Security 2
+		0x6c: 1,  // Supervision
+		0x55: 1,  // Transport Service
+		0x86: 1,  // Version
+		0x5e: 2,  // Z-Wave Plus Info
 	]
 }
 
@@ -418,11 +426,11 @@ def zwaveEvent(physicalgraph.zwave.commands.associationv2.AssociationReport cmd)
 	}
 }
 
-def zwaveEvent(physicalgraph.zwave.commands.switchmultilevelv2.SwitchMultilevelReport cmd) {
+def zwaveEvent(physicalgraph.zwave.commands.switchmultilevelv3.SwitchMultilevelReport cmd) {
 	dimmerEvents(cmd)
 }
 
-def zwaveEvent(physicalgraph.zwave.commands.switchmultilevelv2.SwitchMultilevelSet cmd) {
+def zwaveEvent(physicalgraph.zwave.commands.switchmultilevelv3.SwitchMultilevelSet cmd) {
 	dimmerEvents(cmd)
 }
 
@@ -510,6 +518,7 @@ def zwaveEvent(physicalgraph.zwave.commands.configurationv1.ConfigurationReport 
 				default:
 					break
 			}
+            break
 		case 9:
 			name = "rampspeed"
 			value = reportValue
@@ -585,8 +594,8 @@ def zwaveEvent(physicalgraph.zwave.commands.manufacturerspecificv2.ManufacturerS
 	createEvent([descriptionText: "$device.displayName MSR: $msr", isStateChange: false])
 }
 
-def zwaveEvent(physicalgraph.zwave.commands.switchmultilevelv1.SwitchMultilevelStopLevelChange cmd) {
-	[createEvent(name:"switch", value:"on"), response(zwave.switchMultilevelV1.switchMultilevelGet().format())]
+def zwaveEvent(physicalgraph.zwave.commands.switchmultilevelv3.SwitchMultilevelStopLevelChange cmd) {
+	[createEvent(name:"switch", value:"on"), response(zwave.switchMultilevelV3.switchMultilevelGet().format())]
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.crc16encapv1.Crc16Encap cmd) {
@@ -610,8 +619,8 @@ def on() {
 	def dimmingDuration = state.dimDuration
 	log.debug "dimmingDuration: $dimmingDuration"
 	delayBetween([
-			zwave.switchMultilevelV2.switchMultilevelSet(value: level, dimmingDuration: dimmingDuration).format(),
-			zwave.switchMultilevelV1.switchMultilevelGet().format()
+			zwave.switchMultilevelV3.switchMultilevelSet(value: level, dimmingDuration: dimmingDuration).format(),
+			zwave.switchMultilevelV3.switchMultilevelGet().format()
 	],2000)
 }
 
@@ -620,8 +629,8 @@ def off() {
 	def dimmingDuration = state.dimDuration
 	log.debug "dimmingDuration: $dimmingDuration"
 	delayBetween([
-			zwave.switchMultilevelV2.switchMultilevelSet(value: level, dimmingDuration: dimmingDuration).format(),
-			zwave.switchMultilevelV1.switchMultilevelGet().format()
+			zwave.switchMultilevelV3.switchMultilevelSet(value: level, dimmingDuration: dimmingDuration).format(),
+			zwave.switchMultilevelV3.switchMultilevelGet().format()
 	],2000)
 }
 
@@ -635,7 +644,7 @@ def setLevel(value) {
 		sendEvent(name: "switch", value: "off")
 	}
 	sendEvent(name: "level", value: level, unit: "%")
-	delayBetween ([zwave.basicV1.basicSet(value: level).format(), zwave.switchMultilevelV1.switchMultilevelGet().format()], 2000)
+	delayBetween ([zwave.basicV1.basicSet(value: level).format(), zwave.switchMultilevelV3.switchMultilevelGet().format()], 2000)
 }
 
 def setLevel(value, duration) {
@@ -644,12 +653,12 @@ def setLevel(value, duration) {
 	def level = Math.max(Math.min(valueaux, 99), 0)
 	def dimmingDuration = duration < 128 ? duration : 128 + Math.round(duration / 60)
 	def getStatusDelay = duration < 128 ? (duration*1000)+2000 : (Math.round(duration / 60)*60*1000)+2000
-	delayBetween ([zwave.switchMultilevelV2.switchMultilevelSet(value: level, dimmingDuration: dimmingDuration).format(),
-				zwave.switchMultilevelV1.switchMultilevelGet().format()], getStatusDelay)
+	delayBetween ([zwave.switchMultilevelV3.switchMultilevelSet(value: level, dimmingDuration: dimmingDuration).format(),
+				zwave.switchMultilevelV3.switchMultilevelGet().format()], getStatusDelay)
 }
 
 def poll() {
-	zwave.switchMultilevelV1.switchMultilevelGet().format()
+	zwave.switchMultilevelV3.switchMultilevelGet().format()
 }
 
 /**
@@ -666,7 +675,7 @@ def refresh() {
 			commands << mfrGet()
 			commands << zwave.versionV1.versionGet().format()
 		}
-	commands << zwave.switchMultilevelV1.switchMultilevelGet().format()
+	commands << zwave.switchMultilevelV3.switchMultilevelGet().format()
 	delayBetween(commands,100)
 }
 
