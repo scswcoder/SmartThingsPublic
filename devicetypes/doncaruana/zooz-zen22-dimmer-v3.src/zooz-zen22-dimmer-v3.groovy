@@ -16,9 +16,7 @@
  *   V2: Basic   (ST Max V1)
  *   V3: Central Scene   (ST Max V1)
  *   V1: Configuration
- *   V1: Configuration
  *   V1: Device Reset Locally
- *   V4: Firmware Update Meta Data   (ST Max V2)
  *   V4: Firmware Update Meta Data   (ST Max V2)
  *   V2: Manufacturer Specific
  *   V3: Multi Channel Association   (ST Max V2)
@@ -361,10 +359,8 @@ private getCommandClassVersions() {
 		0x59: 1,  // Association Group Information (AGI)
 		0x20: 1,  // Basic
 		0x5b: 1,  // Central Scene
-		0x70: 2,  // Configuration
-		0x70: 2,  // Configuration
+		0x70: 1,  // Configuration
 		0x5a: 1,  // Device Reset Locally
-		0x7a: 2,  // Firmware Update Meta Data
 		0x7a: 2,  // Firmware Update Meta Data
 		0x72: 2,  // Manufacturer Specific
 		0x8e: 2,  // Multi Channel Association
@@ -518,7 +514,7 @@ def zwaveEvent(physicalgraph.zwave.commands.configurationv1.ConfigurationReport 
 				default:
 					break
 			}
-            break
+			break
 		case 9:
 			name = "rampspeed"
 			value = reportValue
