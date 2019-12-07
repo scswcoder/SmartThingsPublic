@@ -260,7 +260,6 @@ private getCommandClassVersions() {
 	]
 }
 
-
 def parse(String description) {
 	def result = null
 	def cmd = zwave.parse(description, commandClassVersions)
@@ -377,7 +376,7 @@ def zwaveEvent(physicalgraph.zwave.commands.configurationv1.ConfigurationReport 
 				default:
 					break
 			}
-			break
+            break
 		case 10:
 			name = "scene_control"
 			value = reportValue == 1 ? "true" : "false"
@@ -447,7 +446,7 @@ def poll() {
  * PING is used by Device-Watch in attempt to reach the Device
  * */
 def ping() {
-//    refresh()
+	refresh()
 }
 
 def refresh() {
@@ -457,7 +456,7 @@ def refresh() {
 			commands << mfrGet()
 			commands << zwave.versionV1.versionGet().format()
 		}
-	commands << zwave.switchMultilevelV1.switchMultilevelGet().format()
+	commands << zwave.switchBinaryV1.switchBinaryGet().format()
 	delayBetween(commands,100)
 }
 
@@ -612,7 +611,6 @@ def tapUp5() {
 	sendEvent(tapUp5Response("digital"))
 }
 
-
 def parmSet(parmnum, parmsize, parmval) {
 	return zwave.configurationV1.configurationSet(scaledConfigurationValue: parmval, parameterNumber: parmnum, size: parmsize).format()
 }
@@ -639,10 +637,10 @@ def zwaveEvent(physicalgraph.zwave.commands.versionv1.VersionCommandClassReport 
 //	log.debug "version: ${cmd.commandClassVersion}"
 //	log.debug "class: ${cmd.requestedCommandClass}"
 	rcc = Integer.toHexString(cmd.requestedCommandClass.toInteger()).toString() 
+//	log.debug "${rcc}"
 //	log.debug "class: ${rcc}-${cmd.requestedCommandClass}, version: ${cmd.commandClassVersion}"
 	if (cmd.commandClassVersion > 0) {log.debug "0x${rcc}: V${cmd.commandClassVersion}"}
 }	
-
 
 private parseAssocGroupList(list, group) {
 	def nodes = group == 2 ? [] : [zwaveHubNodeId]
