@@ -6,23 +6,25 @@
  *  2019-07-11 - Added all functions for firmware 2.01
  *  2019-07-13 - Fix logic for null preferences
  *  2019-09-07 - Fix typo in auto turn off timer parameter setting
+ *  2019-12-07 - Fix for parm config report (no impact), fix command class versions
  *
  *  Supported Command Classes
- *         Association v2
- *         Association Group Information
- *         Central Scene
- *         Configuration
- *         Device Reset Local
- *         Firmware Update MD
- *         Manufacturer Specific
- *         Multichannel Association
- *         Powerlevel
- *         Security 2
- *         Supervision
- *         Switch_binary
- *         Transport Service
- *         Version v2
- *         ZWavePlus Info v2
+ *   V2: Association   (ST Max V2)
+ *   V1: Association Group Information (AGI)   (ST Max V1)
+ *   V2: Basic   (ST Max V1)
+ *   V1: Binary Switch   (ST Max V1)
+ *   V3: Central Scene   (ST Max V1)
+ *   V1: Configuration   (ST Max V2)
+ *   V1: Device Reset Locally   (ST Max V1)
+ *   V4: Firmware Update Meta Data   (ST Max V2)
+ *   V2: Manufacturer Specific   (ST Max V2)
+ *   V3: Multi Channel Association   (ST Max V2)
+ *   V1: Powerlevel   (ST Max V1)
+ *   V1: Security 2   (ST Max V1)
+ *   V1: Supervision   (ST Max V1)
+ *   V2: Transport Service   (ST Max V1)
+ *   V3: Version   (ST Max V1)
+ *   V2: Z-Wave Plus Info   (ST Max V2)
  *
  *  
  *   Parm Size Description                                   Value
@@ -40,7 +42,6 @@
 metadata {
 	definition (name: "Zooz Zen26 Switch v2", namespace: "doncaruana", author: "Don Caruana", ocfDeviceType: "oic.d.switch", mnmn: "SmartThings", vid: "generic-switch") {
 		capability "Actuator"
-		capability "Indicator"
  		capability "Switch"
 		capability "Polling"
 		capability "Refresh"
@@ -104,6 +105,8 @@ metadata {
 	tiles(scale: 2) {
 		multiAttributeTile(name:"switch", type: "lighting", width: 6, height: 4, canChangeIcon: true){
 			tileAttribute ("device.switch", key: "PRIMARY_CONTROL") {
+//				attributeState "on", label:'${name}', action:"switch.off", icon:"st.switches.light.on", backgroundColor:"#00a0dc"
+//				attributeState "off", label:'${name}', action:"switch.on", icon:"st.switches.light.off", backgroundColor:"#ffffff"
 				attributeState "on", label:'${name}', action:"switch.off", icon:"st.switches.light.on", backgroundColor:"#00a0dc", nextState:"turningOff"
 				attributeState "off", label:'${name}', action:"switch.on", icon:"st.switches.light.off", backgroundColor:"#ffffff", nextState:"turningOn"
 				attributeState "turningOn", label:'${name}', action:"switch.off", icon:"st.switches.light.on", backgroundColor:"#00a0dc", nextState:"on"
@@ -118,26 +121,6 @@ metadata {
 		main "switch"
 		details(["switch","refresh"])
 	}
-}
-
-private getCommandClassVersions() {
-	[
-		0x59: 1,  // AssociationGrpInfo
-		0x85: 2,  // Association
-		0x5B: 1,  // Central Scene
-		0x5A: 1,  // DeviceResetLocally
-		0x72: 2,  // ManufacturerSpecific
-		0x73: 1,  // Powerlevel
-		0x86: 1,  // Version
-		0x5E: 2,  // ZwaveplusInfo
-		0x25: 1,  // Binary Switch
-		0x70: 1,  // Configuration
-		0x20: 1,  // Basic
-		0x55: 1,  // Transport Service
-		0x6C: 1,  // Supervision
-		0x7A: 1,  // Firmware Update Metadata
-		0x8E: 1,  // Multi Channel Association
-	]
 }
 
 
@@ -177,7 +160,7 @@ def updated(){
 		commands << mfrGet()
 		commands << zwave.versionV1.versionGet().format()
 		commands << zwave.basicV1.basicSet(value: level).format()
-		commands << zwave.switchMultilevelV1.switchMultilevelGet().format()
+		commands << zwave.basicV1.basicGet().format()
 	}
 	def setScene = sceneCtrl == true ? 1 : 0
 	def setPowerRestore = 2
@@ -252,10 +235,33 @@ def updated(){
 	commands << parmGet(3)
 	commands << parmGet(2)
 	commands << parmGet(1)
+
 	// Device-Watch simply pings if no device events received for 32min(checkInterval)
 	sendEvent(name: "checkInterval", value: 2 * 15 * 60 + 2 * 60, displayed: false, data: [protocol: "zwave", hubHardwareId: device.hub.hardwareID])
 	return response(delayBetween(commands, 500))
 }
+
+private getCommandClassVersions() {
+	[
+		0x85: 2,  // Association
+		0x59: 1,  // Association Group Information (AGI)
+		0x20: 1,  // Basic
+		0x25: 1,  // Binary Switch
+		0x5b: 1,  // Central Scene
+		0x70: 1,  // Configuration
+		0x5a: 1,  // Device Reset Locally
+		0x7a: 2,  // Firmware Update Meta Data
+		0x72: 2,  // Manufacturer Specific
+		0x8e: 2,  // Multi Channel Association
+		0x73: 1,  // Powerlevel
+		0x9f: 1,  // Security 2
+		0x6c: 1,  // Supervision
+		0x55: 1,  // Transport Service
+		0x86: 1,  // Version
+		0x5e: 2,  // Z-Wave Plus Info
+	]
+}
+
 
 
 def parse(String description) {
@@ -268,13 +274,11 @@ def parse(String description) {
 		result = [result, response(zwave.basicV1.basicGet())]
 		log.debug "Was hailed: requesting state update"
 	} else {
-		log.debug "Parse returned ${result?.descriptionText}"
+    	if (result?.descriptionText != null) {log.debug "Parse returned ${result?.descriptionText}"}
 	}
 	return result
 }
 
-// Removed because basic report gets automatically returned with every action as well as multilevel,
-//  so there is no physical/digital distinction
 def zwaveEvent(physicalgraph.zwave.commands.basicv1.BasicReport cmd) {
 	[name: "switch", value: cmd.value ? "on" : "off"]
 }
@@ -299,7 +303,7 @@ def zwaveEvent(physicalgraph.zwave.commands.associationv2.AssociationReport cmd)
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.switchbinaryv1.SwitchBinaryReport cmd) {
-	[name: "switch", value: cmd.value ? "on" : "off", type: "digital"]
+	[name: "switch", value: cmd.value ? "on" : "off"]
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.configurationv1.ConfigurationReport cmd) {
@@ -309,8 +313,21 @@ def zwaveEvent(physicalgraph.zwave.commands.configurationv1.ConfigurationReport 
 	log.debug "---CONFIGURATION REPORT V1--- ${device.displayName} parameter ${cmd.parameterNumber} with a byte size of ${cmd.size} is set to ${cmd.configurationValue}"
 	switch (cmd.parameterNumber) {
 		case 1:
-			name = "topoff"
-			value = reportValue == 1 ? "true" : "false"
+			name = "topcontrol"
+			switch (reportValue) {
+				case 0:
+					value = "on"
+					break
+				case 1:
+					value = "off"
+					break
+				case 2:
+					value = "toggle"
+					break
+				default:
+					value = "on"
+					break
+			}
 			break
 		case 2:
 			switch (reportValue) {
@@ -363,6 +380,7 @@ def zwaveEvent(physicalgraph.zwave.commands.configurationv1.ConfigurationReport 
 				default:
 					break
 			}
+            break
 		case 10:
 			name = "scene_control"
 			value = reportValue == 1 ? "true" : "false"
@@ -413,32 +431,40 @@ def zwaveEvent(physicalgraph.zwave.Command cmd) {
 def on() {
 	delayBetween([
 		zwave.basicV1.basicSet(value: 0xFF).format(),
-		zwave.switchBinaryV1.switchBinaryGet().format()
+		zwave.basicV1.basicGet().format()
 	])
 }
 
 def off() {
 	delayBetween([
 		zwave.basicV1.basicSet(value: 0x00).format(),
-		zwave.switchBinaryV1.switchBinaryGet().format()
+		zwave.basicV1.basicGet().format()
 	])
 }
 
 def poll() {
-	log.debug "poll"
-	delayBetween([
-		zwave.switchBinaryV1.switchBinaryGet().format(),
-		zwave.manufacturerSpecificV1.manufacturerSpecificGet().format()
-	])
+	zwave.switchBinaryV1.switchBinaryGet().format()
 }
 
 /**
-  * PING is used by Device-Watch in attempt to reach the Device
-**/
+ * PING is used by Device-Watch in attempt to reach the Device
+ * */
 def ping() {
-	log.debug "ping"
-	refresh()
+//    refresh()
 }
+
+def refresh() {
+	log.debug "refresh() is called"
+	def commands = []
+		if (getDataValue("MSR") == null) {
+			commands << mfrGet()
+			commands << zwave.versionV1.versionGet().format()
+		}
+	commands << zwave.switchMultilevelV1.switchMultilevelGet().format()
+	delayBetween(commands,100)
+//	commandclasscapability()
+}
+
 
 def zwaveEvent(physicalgraph.zwave.commands.centralscenev1.CentralSceneNotification cmd) {
 	def result = []
@@ -591,14 +617,6 @@ def tapUp5() {
 }
 
 
-def refresh() {
-	log.debug "refresh"
-	delayBetween([
-		zwave.switchBinaryV1.switchBinaryGet().format(),
-		zwave.manufacturerSpecificV1.manufacturerSpecificGet().format()
-	])
-}
-
 def parmSet(parmnum, parmsize, parmval) {
 	return zwave.configurationV1.configurationSet(scaledConfigurationValue: parmval, parameterNumber: parmnum, size: parmsize).format()
 }
@@ -620,15 +638,16 @@ def zwaveEvent(physicalgraph.zwave.commands.versionv1.VersionReport cmd) {
 	updateDataValue("zWaveProtocolSubVersion", "${cmd.zWaveProtocolSubVersion}")
 }
 
-def zwaveEvent(physicalgraph.zwave.commands.versionv1.VersionCommandClassReport cmd) {
-	log.debug "vccr"
+def zwaveEvent(physicalgraph.zwave.commands.versionv1.VersionCommandClassReport cmd) {	
 	def rcc = ""
-	log.debug "version: ${cmd.commandClassVersion}"
-	log.debug "class: ${cmd.requestedCommandClass}"
+//	log.debug "version: ${cmd.commandClassVersion}"
+//	log.debug "class: ${cmd.requestedCommandClass}"
 	rcc = Integer.toHexString(cmd.requestedCommandClass.toInteger()).toString() 
-	log.debug "${rcc}"
-	if (cmd.commandClassVersion > 0) {log.debug "0x${rcc}_V${cmd.commandClassVersion}"}
-}
+//	log.debug "${rcc}"
+//	log.debug "class: ${rcc}-${cmd.requestedCommandClass}, version: ${cmd.commandClassVersion}"
+	if (cmd.commandClassVersion > 0) {log.debug "0x${rcc}: V${cmd.commandClassVersion}"}
+}	
+
 
 private parseAssocGroupList(list, group) {
 	def nodes = group == 2 ? [] : [zwaveHubNodeId]
