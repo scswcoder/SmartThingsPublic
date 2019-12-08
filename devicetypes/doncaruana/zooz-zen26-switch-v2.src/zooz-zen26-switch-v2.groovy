@@ -7,6 +7,7 @@
  *  2019-07-13 - Fix logic for null preferences
  *  2019-09-07 - Fix typo in auto turn off timer parameter setting
  *  2019-12-07 - Fix for parm config report (no impact), fix command class versions
+ *  2019-12-08 - Added new value for parameter 11 available in firmware 2.02
  *
  *  Supported Command Classes
  *   V2: Association   (ST Max V2)
@@ -36,7 +37,7 @@
  *      6    4 Turn-on Timer                                 60 (Default)-Time in minutes after turning off to automatically turn on (1-65535 minutes)
  *      8    1 Power Restore                                 2 (Default)-Remember state from pre-power failure, 0-Off after power restored, 1-On after power restore
  *     10    1 Scene Control                                 0 (Default)-Scene control disabled, 1-Scene control enabled
- *     11    1 Disable Paddle                                1 (Default)-Paddle is used for local control, 0-Paddle single tap disabled
+ *     11    1 Disable Paddle                                1 (Default)-Paddle is used for local control, 0-Paddle single tap disabled, 2-Disable all control of switch
  */
 
 metadata {
@@ -86,7 +87,7 @@ metadata {
 		input "autoTurnon", "bool", title: "Auto On", description: "Light will automatically turn on after set time", required: false, defaultValue: false
 		input "offTimer", "number", title: "Off Timer", description: "Time in minutes to automatically turn off", required: false, defaultValue: 60, range: "1..65535"
 		input "onTimer", "number", title: "On Timer", description: "Time in minutes to automatically turn on", required: false, defaultValue: 60, range: "1..65535"
-		input "localControl", "bool", title: "Local Control", description: "Local paddle control enabled", required: false, defaultValue: true
+		input "localControl", "enum", title: "Local Control", description: "Local paddle control enabled", options:["lcOn": "Local and Zwave On/Off enabled", "lcOff": "Disable local control", "lcAllOff": "Local and Zwave On/Off disabled"], defaultValue: "lcOn",displayDuringSetup: false
 		input (
 					type: "paragraph",
 					element: "paragraph",
@@ -146,7 +147,7 @@ def installed() {
 def updated(){
 	// These are needed as SmartThings is not honoring defaultValue in preferences. They are set to the device defaults
 	def setLocalControl = 1
-	if (localControl!=null) {setLocalControl = localControl == true ? 1 : 0}
+	if (localControl!=null) {setLocalControl = localControl == "lcOn" ? 1 : localControl == "lcOff" ? 0 : 2}
 	def setOffTimer = 60
 	if (offTimer) {setOffTimer = offTimer}
 	def setOnTimer = 60
