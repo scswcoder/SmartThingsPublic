@@ -551,6 +551,7 @@ def zwaveEvent(physicalgraph.zwave.commands.configurationv1.ConfigurationReport 
 					value = "off"
 					break
 			}
+			break
 		case 15:
 			name = "local_control"
 			value = reportValue == 1 ? "true" : "false"
