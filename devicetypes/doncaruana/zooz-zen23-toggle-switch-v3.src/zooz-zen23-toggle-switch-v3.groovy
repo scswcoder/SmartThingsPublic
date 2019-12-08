@@ -6,6 +6,7 @@
  * 2019-04-13 - Added Scene Controls
  * 2019-07-12 - Added functions for firmware 3.03
  * 2019-09-07 - Fix typo in auto turn off timer parameter setting
+ * 2019-12-08 - Fix for parm config report (no impact), updated supported command class versions
  *
  *   Parm Size Description                                   Value
  *      1    1 Toggle Control                                0 (Default)-Toggle up turns light on, 1-Toggle down turns light on, 2-toggle either way toggles light status
@@ -16,7 +17,30 @@
  *      8    1 Power Restore                                 2 (Default)-Remember state from pre-power failure, 0-Off after power restored, 1-On after power restore
  *      9    1 Scene Control                                 0 (Default)-Scene control disabled, 1-Scene control enabled
  *     10    1 Disable toggle                                1 (Default)-Toggle is used for local control, 0-toggle disabled
+ *
+ *
+ *  Supported Command Classes
+ *
+ *   V2: Association
+ *   V1: Association Group Information (AGI)
+ *   V2: Basic   (ST Max V1)
+ *   V1: Binary Switch
+ *   V3: Central Scene   (ST Max V1)
+ *   V1: Configuration
+ *   V1: Device Reset Locally
+ *   V4: Firmware Update Meta Data   (ST Max V2)
+ *   V2: Manufacturer Specific
+ *   V3: Multi Channel Association   (ST Max V2)
+ *   V1: Powerlevel
+ *   V1: Security 2
+ *   V1: Supervision
+ *   V2: Transport Service   (ST Max V1)
+ *   V3: Version   (ST Max V1)
+ *   V2: Z-Wave Plus Info
+ *
+ *
  */
+
 metadata {
 	definition (name: "Zooz Zen23 Toggle Switch v3", namespace: "doncaruana", author: "Don Caruana", ocfDeviceType: "oic.d.switch", mnmn: "SmartThings", vid: "generic-switch") {
 		capability "Actuator"
@@ -102,21 +126,22 @@ metadata {
 
 private getCommandClassVersions() {
 	[
-		0x59: 1,  // AssociationGrpInfo
 		0x85: 2,  // Association
-		0x5B: 1,  // Central Scene
-		0x5A: 1,  // DeviceResetLocally
-		0x72: 2,  // ManufacturerSpecific
-		0x73: 1,  // Powerlevel
-		0x86: 1,  // Version
-		0x5E: 2,  // ZwaveplusInfo
+		0x59: 1,  // Association Group Information (AGI)
+		0x20: 1,  // Basic
 		0x25: 1,  // Binary Switch
+		0x5b: 1,  // Central Scene
 		0x70: 1,  // Configuration
+		0x5a: 1,  // Device Reset Locally
+		0x7a: 2,  // Firmware Update Meta Data
+		0x72: 2,  // Manufacturer Specific
+		0x8e: 2,  // Multi Channel Association
+		0x73: 1,  // Powerlevel
+		0x9f: 1,  // Security 2
+		0x6c: 1,  // Supervision
 		0x55: 1,  // Transport Service
-		0x6C: 1,  // Supervision
-		0x7A: 1,  // Firmware Update Metadata
-		0x8E: 1,  // Multi Channel Association
-		0x9F: 1,  // S2
+		0x86: 1,  // Version
+		0x5e: 2,  // Z-Wave Plus Info
 	]
 }
 
@@ -265,6 +290,7 @@ def zwaveEvent(physicalgraph.zwave.commands.configurationv1.ConfigurationReport 
 				default:
 					break
 			}
+			break
 		case 3:
 			name = "autooff"
 			value = reportValue == 1 ? "true" : "false"
@@ -296,6 +322,7 @@ def zwaveEvent(physicalgraph.zwave.commands.configurationv1.ConfigurationReport 
 				default:
 					break
 			}
+			break
 		case 9:
 			name = "scene_control"
 			value = reportValue == 1 ? "true" : "false"
@@ -337,7 +364,6 @@ def zwaveEvent(physicalgraph.zwave.commands.crc16encapv1.Crc16Encap cmd) {
 	}
 }
 
-
 def zwaveEvent(physicalgraph.zwave.Command cmd) {
 	// Handles all Z-Wave commands we aren't interested in
 	[:]
@@ -346,21 +372,21 @@ def zwaveEvent(physicalgraph.zwave.Command cmd) {
 def on() {
 	delayBetween([
 		zwave.basicV1.basicSet(value: 0xFF).format(),
-		zwave.switchBinaryV1.switchBinaryGet().format()
+		zwave.basicV1.basicGet().format()
 	])
 }
 
 def off() {
 	delayBetween([
 		zwave.basicV1.basicSet(value: 0x00).format(),
-		zwave.switchBinaryV1.switchBinaryGet().format()
+		zwave.basicV1.basicGet().format()
 	])
 }
 
 def poll() {
 	log.debug "poll"
 	delayBetween([
-		zwave.switchBinaryV1.switchBinaryGet().format(),
+		zwave.basicV1.basicGet().format(),
 		zwave.manufacturerSpecificV1.manufacturerSpecificGet().format()
 	])
 }
@@ -376,7 +402,7 @@ def ping() {
 def refresh() {
 	log.debug "refresh"
 	delayBetween([
-		zwave.switchBinaryV1.switchBinaryGet().format(),
+		zwave.basicV1.basicGet().format(),
 		zwave.manufacturerSpecificV1.manufacturerSpecificGet().format()
 	])
 }
@@ -560,12 +586,12 @@ def zwaveEvent(physicalgraph.zwave.commands.versionv1.VersionReport cmd) {
 	updateDataValue("zWaveProtocolSubVersion", "${cmd.zWaveProtocolSubVersion}")
 }
 
-def zwaveEvent(physicalgraph.zwave.commands.versionv1.VersionCommandClassReport cmd) {
-	log.debug "vccr"
+def zwaveEvent(physicalgraph.zwave.commands.versionv1.VersionCommandClassReport cmd) {	
 	def rcc = ""
-	log.debug "version: ${cmd.commandClassVersion}"
-	log.debug "class: ${cmd.requestedCommandClass}"
+//	log.debug "version: ${cmd.commandClassVersion}"
+//	log.debug "class: ${cmd.requestedCommandClass}"
 	rcc = Integer.toHexString(cmd.requestedCommandClass.toInteger()).toString() 
-	log.debug "${rcc}"
-	if (cmd.commandClassVersion > 0) {log.debug "0x${rcc}_V${cmd.commandClassVersion}"}
-}
+//	log.debug "${rcc}"
+//	log.debug "class: ${rcc}-${cmd.requestedCommandClass}, version: ${cmd.commandClassVersion}"
+	if (cmd.commandClassVersion > 0) {log.debug "0x${rcc}: V${cmd.commandClassVersion}"}
+}	
