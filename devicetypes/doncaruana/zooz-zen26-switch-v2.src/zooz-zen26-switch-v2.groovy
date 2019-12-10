@@ -8,6 +8,7 @@
  *  2019-09-07 - Fix typo in auto turn off timer parameter setting
  *  2019-12-07 - Fix for parm config report (no impact), fix command class versions
  *  2019-12-08 - Added new value for parameter 11 available in firmware 2.02
+ *  2019-12-09 - Fix for single tap scene control
  *
  *  Supported Command Classes
  *   V2: Association   (ST Max V2)
@@ -471,7 +472,7 @@ def zwaveEvent(physicalgraph.zwave.commands.centralscenev1.CentralSceneNotificat
 				case 0:
 					// Press Once
 						result += createEvent(tapDown1Response("physical"))
-						result += createEvent([name: "switch", value: "off", type: "physical"])
+						//result += createEvent([name: "switch", value: "off", type: "physical"])
 						break
 					case 3: 
 						// 2 Times
@@ -499,7 +500,7 @@ def zwaveEvent(physicalgraph.zwave.commands.centralscenev1.CentralSceneNotificat
 				case 0:
 					// Press Once
 					result += createEvent(tapUp1Response("physical"))
-					result += createEvent([name: "switch", value: "on", type: "physical"]) 
+					//result += createEvent([name: "switch", value: "on", type: "physical"]) 
 					break
 				case 3: 
 					// 2 Times
