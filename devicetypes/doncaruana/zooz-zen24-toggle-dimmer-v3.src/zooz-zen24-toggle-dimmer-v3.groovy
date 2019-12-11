@@ -7,6 +7,7 @@
  * 2019-07-12 - Added functions for v3.01
  * 2019-09-07 - Fix typo in auto turn off timer parameter setting
  * 2019-11-16 - Updated with latest device parameters, changed handling of double tap
+ * 2019-12-10 - Clean up, update command class versions, fix for single tap scene control
  *
  *   Parm Size Description                                   Value
  *      1    1 Toggle Control                                0 (Default)-Toggle up turns light on, 1-Toggle down turns light on, 2-toggle either way toggles light status
@@ -422,6 +423,7 @@ def zwaveEvent(physicalgraph.zwave.commands.configurationv1.ConfigurationReport 
 				default:
 					break
 			}
+			break
 		case 3:
 			name = "autooff"
 			value = reportValue == 1 ? "true" : "false"
@@ -453,6 +455,7 @@ def zwaveEvent(physicalgraph.zwave.commands.configurationv1.ConfigurationReport 
 				default:
 					break
 			}
+			break
 		case 9:
 			name = "rampspeed"
 			value = reportValue
@@ -489,6 +492,7 @@ def zwaveEvent(physicalgraph.zwave.commands.configurationv1.ConfigurationReport 
 					value = "off"
 					break
 			}
+			break
 		case 15:
 			name = "local_control"
 			value = reportValue == 1 ? "true" : "false"
@@ -623,7 +627,6 @@ def zwaveEvent(physicalgraph.zwave.commands.centralscenev1.CentralSceneNotificat
 				case 0:
 					// Press Once
 						result += createEvent(tapDown1Response("physical"))
-						result += createEvent([name: "switch", value: "off", type: "physical"])
 						break
 					case 3: 
 						// 2 Times
@@ -651,7 +654,6 @@ def zwaveEvent(physicalgraph.zwave.commands.centralscenev1.CentralSceneNotificat
 				case 0:
 					// Press Once
 					result += createEvent(tapUp1Response("physical"))
-					result += createEvent([name: "switch", value: "on", type: "physical"]) 
 					break
 				case 3: 
 					// 2 Times
