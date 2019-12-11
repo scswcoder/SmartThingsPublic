@@ -7,6 +7,7 @@
  * 2019-07-11 - Fix for SmartThings not honoring defaultValue in preferences and leaving preference value as null unless explicitly set
  * 2019-09-07 - Fix typo in auto turn off timer parameter setting
  * 2019-11-16 - Updated with latest device parameters, changed handling of double tap
+ * 2019-12-10 - Clean up, fix for single tap scene control
  *
  *  Supported Command Classes
  *         Association v2
@@ -515,6 +516,7 @@ def zwaveEvent(physicalgraph.zwave.commands.configurationv1.ConfigurationReport 
 				default:
 					break
 			}
+			break
 		case 9:
 			name = "rampspeed"
 			value = reportValue
@@ -551,6 +553,7 @@ def zwaveEvent(physicalgraph.zwave.commands.configurationv1.ConfigurationReport 
 					value = "off"
 					break
 			}
+			break
 		case 15:
 			name = "local_control"
 			value = reportValue == 1 ? "true" : "false"
@@ -673,7 +676,6 @@ def zwaveEvent(physicalgraph.zwave.commands.centralscenev1.CentralSceneNotificat
 				case 0:
 					// Press Once
 						result += createEvent(tapDown1Response("physical"))
-						result += createEvent([name: "switch", value: "off", type: "physical"])
 						break
 					case 3: 
 						// 2 Times
@@ -701,7 +703,6 @@ def zwaveEvent(physicalgraph.zwave.commands.centralscenev1.CentralSceneNotificat
 				case 0:
 					// Press Once
 					result += createEvent(tapUp1Response("physical"))
-					result += createEvent([name: "switch", value: "on", type: "physical"]) 
 					break
 				case 3: 
 					// 2 Times
