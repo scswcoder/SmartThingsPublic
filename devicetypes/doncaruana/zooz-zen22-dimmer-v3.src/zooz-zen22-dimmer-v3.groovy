@@ -9,6 +9,7 @@
  * 2019-10-12 - Updated with new device parameters
  * 2019-11-11 - Updated with latest device parameters, changed handling of double tap
  * 2019-12-07 - Fix for parm config report (no impact), updated supported command class versions
+ * 2019-12-10 - Fix for single tap scene control
  *
  *  Supported Command Classes
  *   V2: Association
@@ -685,7 +686,6 @@ def zwaveEvent(physicalgraph.zwave.commands.centralscenev1.CentralSceneNotificat
 				case 0:
 					// Press Once
 						result += createEvent(tapDown1Response("physical"))
-						result += createEvent([name: "switch", value: "off", type: "physical"])
 						break
 					case 3: 
 						// 2 Times
@@ -713,7 +713,6 @@ def zwaveEvent(physicalgraph.zwave.commands.centralscenev1.CentralSceneNotificat
 				case 0:
 					// Press Once
 					result += createEvent(tapUp1Response("physical"))
-					result += createEvent([name: "switch", value: "on", type: "physical"]) 
 					break
 				case 3: 
 					// 2 Times
