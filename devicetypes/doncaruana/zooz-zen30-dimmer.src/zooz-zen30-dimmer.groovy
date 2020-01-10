@@ -111,7 +111,7 @@ metadata {
 		input "ledBrightness", "enum", title: "Dimmer LED Brightness", description: "Medium (60%)... ", options:["bright": "Bright(100%)", "medium": "Medium(60%)", "low": "Low(30%)"], defaultValue: "medium"
 		input "ledBrightnessRB", "enum", title: "Relay LED Brightness", description: "Medium (60%)... ", options:["bright": "Bright(100%)", "medium": "Medium(60%)", "low": "Low(30%)"], defaultValue: "medium"
 		input "ledScene", "bool", title: "Disable LED Scene Indicator", description: "LEDs indicate scene", required: false, defaultValue: false
-		input "paddleControl", "enum", title: "Paddle Control", description: "Standard, Inverted, or Toggle", options:["std": "Standard", "invert": "Invert", "toggle": "Toggle"], defaultValue: "std"
+//		input "paddleControl", "enum", title: "Paddle Control", description: "Standard, Inverted, or Toggle", options:["std": "Standard", "invert": "Invert", "toggle": "Toggle"], defaultValue: "std"
 		input "rampRate", "number", title: "Ramp Rate", description: "Seconds to reach full brightness (0-99)", required: false, defaultValue: 1, range: "0..99"
 		input "offTimer", "number", title: "Dimmer Off Timer (0 Disables)", description: "Time in minutes to automatically turn off", required: false, defaultValue: 0, range: "0..65535"
 		input "onTimer", "number", title: "Dimmer On Timer (0 Disables)", description: "Time in minutes to automatically turn on", required: false, defaultValue: 0, range: "0..65535"
@@ -1504,14 +1504,14 @@ def updated(){
 	commands << parmSet(19, 1, setLocalControl)
 	commands << parmSet(18, 1, setDtapDisable)
 	commands << parmSet(17, 1, setDoubleTap)
-	commands << parmSet(15, 4, setMaxBright)
-	commands << parmSet(14, 4, setMinBright)
-	commands << parmSet(13, 4, setRampRate)
-	commands << parmSet(12, 4, setPowerRestore)
-	commands << parmSet(11, 1, setOnTimerRB)
-	commands << parmSet(10, 1, setOffTimerRB)
-	commands << parmSet(9, 1, setOnTimer)
-	commands << parmSet(8, 1, setOffTimer)
+	commands << parmSet(15, 1, setMaxBright)
+	commands << parmSet(14, 1, setMinBright)
+	commands << parmSet(13, 1, setRampRate)
+	commands << parmSet(12, 1, setPowerRestore)
+	commands << parmSet(11, 4, setOnTimerRB)
+	commands << parmSet(10, 4, setOffTimerRB)
+	commands << parmSet(9, 4, setOnTimer)
+	commands << parmSet(8, 4, setOffTimer)
 	commands << parmSet(7, 1, setLedScene)
 	commands << parmSet(6, 1, setLedBrightnessRB)
 	commands << parmSet(5, 1, setLedBrightness)
