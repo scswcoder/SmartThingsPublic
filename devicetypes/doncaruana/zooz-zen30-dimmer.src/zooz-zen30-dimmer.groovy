@@ -5,11 +5,11 @@
  * 2020-01-08 - Initial release. Multichannel association (3rd group) not working
  *
  * Notes:
- *		1) A custom child handler is necessary because the stock child switch handler does not handle refresh and will go "offline" in the new app.
- *		2) This device has 21 scene buttons. Presses are 1,2,3,4,5,hold,release. 
- *																Upper paddle presses 1,3,5,7,9,16,17
- *																Lower paddle presses 2,4,6,8,10,18,19
- *																Relay switch presses 11,12,13,14,15,20,21
+ *		1) This device has 21 scene buttons. 
+ *		Presses are 1,2,3,4,5,hold,release. 
+ *		Upper paddle presses 1,3,5,7,9,16,17
+ *		Lower paddle presses 2,4,6,8,10,18,19
+ *		Relay switch presses 11,12,13,14,15,20,21
  *
  *  Supported Command Classes
  *   V2: Association
@@ -89,7 +89,7 @@ metadata {
 			command "tapRB4"
 			command "tapRB5"
 
-		fingerprint mfr: "027A", prod: "A000", model: "A008", deviceJoinName: "Zen30 MC" //US
+		fingerprint mfr: "027A", prod: "A000", model: "A008", deviceJoinName: "Zooz Zen30" //US
 	}
 
 	simulator {
@@ -170,7 +170,7 @@ metadata {
 			standardTile("refresh", "device.switch", width: 2, height: 2, inactiveLabel: false, decoration: "flat") {
 				state "default", label: '', action: "refresh.refresh", icon: "st.secondary.refresh"
 		}
-		childDeviceTiles("endpoints")
+		childDeviceTiles("all")
 	}
 }
 
@@ -211,14 +211,18 @@ def installed() {
 		endpointDescList *= endpointCount
 	}
 
+	addChildSwitchDevice()
+	sendEvent(name: "numberOfButtons", value: 21, displayed: false)
+    refreshChild()
+}
+
+private addChildSwitchDevice() {
 	def componentLabel
 	componentLabel = "$device.displayName Relay"
 	String dni = "${device.deviceNetworkId}-ep1"
-	addChildDevice("Zooz Zen30 Child Switch", dni, device.hub.id,
+	addChildDevice("smartthings","child switch", dni, device.hub.id,
 		[completedSetup: true, label: "${componentLabel}", isComponent: false])
 	log.debug "Endpoint 1 (Zen30 Relay Switch Endpoint) added as $componentLabel"
-	sendEvent(name: "numberOfButtons", value: 21, displayed: false)
-//    refreshChild()
 }
 
 private getCommandClassVersions() {
@@ -359,17 +363,14 @@ def zwaveEvent(physicalgraph.zwave.commands.multichannelv3.MultiChannelCmdEncap 
 		if (childDevice) {
 			log.debug "Got $formatCmd for ${childDevice.name}"
 				if (formatCmd.indexOf('250300') > -1) {
-				log.debug "switch report encap off"
 							childDevices[0].sendEvent(name:"switch", value:"off")
 			} 
 				if (formatCmd.indexOf('2503FF') > -1) {
-					log.debug "switch report encap on"
 					childDevices[0].sendEvent(name:"switch", value:"on")
 							}
 						}
 		}
 }
-
 
 def zwaveEvent(physicalgraph.zwave.commands.securityv1.SecurityMessageEncapsulation cmd) {
 	def encapsulatedCommand = cmd.encapsulatedCommand(commandClassVersions)
@@ -968,7 +969,7 @@ def zwaveEvent(physicalgraph.zwave.commands.associationv2.AssociationReport cmd)
 	state.group3 = "1,2"
 	if (cmd.groupingIdentifier == 3) {
 		if (cmd.nodeId.contains(zwaveHubNodeId)) {
-			createEvent(name: "numberOfButtons", value: 10, displayed: false)
+			createEvent(name: "numberOfButtons", value: 21, displayed: false)
 		}
 		else {
 			sendEvent(name: "numberOfButtons", value: 0, displayed: false)
@@ -1258,10 +1259,8 @@ def updated(){
 	def nodes = []
 	def commands = []
 	if (getDataValue("MSR") == null) {
-		def level = 99
 		commands << mfrGet()
 		commands << zwave.versionV1.versionGet().format()
-		commands << zwave.basicV1.basicSet(value: level).format()
 		commands << zwave.switchMultilevelV1.switchMultilevelGet().format()
 	}
 	def setLedScene = ledScene == true ? 1 : 0
@@ -1298,9 +1297,6 @@ def updated(){
     def setPowerRestore = 3
     def setPowerRestoreD = 2
     def setPowerRestoreRB = 2
-    log.debug "setPowerRestore: ${setPowerRestore}"
-    log.debug "setPowerRestoreD: ${setPowerRestoreD}"
-    log.debug "setPowerRestoreRB: ${setPowerRestoreRB}"
 	if (powerRestore != null) {setPowerRestoreD = powerRestore == "prremember" ? 2 : powerRestore == "proff" ? 0 : 1}
 	if (powerRestoreRB != null) {setPowerRestoreRB = powerRestoreRB == "prrememberRB" ? 2 : powerRestoreRB == "proff" ? 0 : 1}
     def powerRestoreCalc = 4 * setPowerRestoreD + setPowerRestoreRB
