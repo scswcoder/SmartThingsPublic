@@ -10,6 +10,7 @@
  * 2019-11-11 - Updated with latest device parameters, changed handling of double tap
  * 2019-12-07 - Fix for parm config report (no impact), updated supported command class versions
  * 2019-12-10 - Fix for single tap scene control
+ * 2020-01-10 - Addition of 3-way switch type parameter
  *
  *  Supported Command Classes
  *   V2: Association
@@ -128,6 +129,13 @@ metadata {
 					type: "text",
 					required: false
 					)
+		input (
+					type: "paragraph",
+					element: "paragraph",
+					title: "3-Way Switch type",
+					description: "Standard mechanical 3-way on/off switch - turns on/off to last brightness level; Enhanced mechanical 3-way on/off switch - tap the paddles once to change state (light on or off), tap the paddles twice quickly to turn light on to full brightness, tap the paddles quickly 3 times to enable a dimming sequence (the light will start dimming up and down in a loop) and tap the switch again to set the selected brightness level; Momentary Switch - click once to change status (light on or off), click twice quickly to turn light on to full brightness, press and hold to adjust brightness (dim up / dim down in sequence)."
+					)
+		input "type3way", "enum", title: "3-Way type ", options:["std": "Standard mechanical", "enh": "Enhanced mechanical", "moment": "Momentary"], defaultValue: "std",displayDuringSetup: false
 	}
 
 	tiles(scale: 2) {
@@ -181,7 +189,7 @@ def installed() {
 	cmds << parmGet(16)
 	cmds << parmGet(17)
 	cmds << parmGet(18)
-
+	cmds << parmGet(19)
 	def level = 99
 	cmds << zwave.basicV1.basicSet(value: level).format()
 	cmds << zwave.switchMultilevelV3.switchMultilevelGet().format()
@@ -298,7 +306,21 @@ def updated(){
 			setLedIndicator = 0
 			break
 	}
-
+	def setType3way = 0
+	switch (type3way) {
+		case "std":
+			setType3way = 0
+			break
+		case "enh":
+			setType3way = 1
+			break
+		case "moment":
+			setType3way = 2
+			break
+		default:
+			setType3way = 0
+			break
+	}
 	if (setScene) {
 	sendEvent(name: "numberOfButtons", value: 10, displayed: false)
 } else {
@@ -314,6 +336,7 @@ def updated(){
 	}
 	
 	//parmset takes the parameter number, it's size, and the value - in that order
+    commands << parmSet(19, 1, setType3way)
 	commands << parmSet(18, 1, setPhysDefBright)
 	commands << parmSet(17, 1, setZwaveontype)
 	commands << parmSet(16, 1, setPhysdimspeed)
@@ -332,6 +355,7 @@ def updated(){
 	commands << parmSet(2, 1, setLedIndicator)
 	commands << parmSet(1, 1, setPaddleControl)
 
+	commands << parmGet(19)
 	commands << parmGet(18)
 	commands << parmGet(17)
 	commands << parmGet(16)
@@ -568,6 +592,23 @@ def zwaveEvent(physicalgraph.zwave.commands.configurationv1.ConfigurationReport 
 		case 18:
 			name = "def_brightness"
 			value = reportValue
+			break
+		case 19:
+			switch (reportValue) {
+				case 0:
+					value = "standard"
+					break
+				case 1:
+					value = "enhanced"
+					break
+				case 2:
+					value = "momentary"
+					break
+				default:
+					value = "standard"
+					break
+			}
+			name = "3wayswitchtype"
 			break
 		default:
 			break
