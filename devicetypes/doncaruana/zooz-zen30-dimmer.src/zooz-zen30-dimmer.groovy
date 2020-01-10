@@ -2,7 +2,7 @@
  *  Zooz Zen30 Dimmer
  *
  * Revision History:
- * 2020-01-08 - Initial release. Multichannel association (3rd group) not working
+ * 2020-01-09 - Initial release
  *
  * Notes:
  *		1) This device has 21 scene buttons. 
@@ -1259,8 +1259,10 @@ def updated(){
 	def nodes = []
 	def commands = []
 	if (getDataValue("MSR") == null) {
+   		def level = 99
 		commands << mfrGet()
 		commands << zwave.versionV1.versionGet().format()
+		commands << zwave.basicV1.basicSet(value: level).format()
 		commands << zwave.switchMultilevelV1.switchMultilevelGet().format()
 	}
 	def setLedScene = ledScene == true ? 1 : 0
@@ -1481,6 +1483,19 @@ def updated(){
 		state.currentGroup2 = settings.requestedGroup2
 	}
 	
+	if (settings.requestedGroup3 != state.currentGroup3) {
+		nodes = parseAssocGroupList(settings.requestedGroup3, 3)
+		commands << zwave.associationV2.associationRemove(groupingIdentifier: 3, nodeId: []).format()
+		commands << zwave.associationV2.associationSet(groupingIdentifier: 3, nodeId: nodes).format()
+		commands << zwave.associationV2.associationGet(groupingIdentifier: 3).format()
+//        commands << associationSetCmd(3)
+		commands << multiChannelAssociationSetCmd(3, 1)
+		commands << multiChannelAssociationGetCmd(3)
+
+		state.currentGroup3 = settings.requestedGroup3
+	}
+
+
 	//parmset takes the parameter number, it's size, and the value - in that order
 	commands << parmSet(23, 1, setPhysDefBright)
 	commands << parmSet(22, 1, setZwaveontype)
@@ -1536,3 +1551,46 @@ def mfrGet() {
 	return zwave.manufacturerSpecificV2.manufacturerSpecificGet().format()
 }
 
+private multiChannelAssociationSetCmd(group, endpoint) { 
+	def cmd = zwave.multiChannelAssociationV2.multiChannelAssociationSet(groupingIdentifier:group, nodeId:[zwaveHubNodeId]).format()
+	return secureRawCmd("${cmd}00${convertToHex(zwaveHubNodeId)}${convertToHex(endpoint)}")
+}	
+
+private multiChannelAssociationGetCmd(group) { 
+	return secureCmd(zwave.multiChannelAssociationV2.multiChannelAssociationGet(groupingIdentifier:group))
+}
+
+private secureRawCmd(cmd) {
+	if (isSecurityEnabled()) {
+		return "988100${cmd}"
+	}
+	else {
+		return cmd
+	}
+}
+
+private isSecurityEnabled() {
+	try {
+		return zwaveInfo?.zw?.contains("s") || ("0x98" in device.rawDescription?.split(" "))
+	}
+	catch (e) {
+		return false
+	}
+}
+
+private convertToHex(num) {
+	return Integer.toHexString(num).padLeft(2, "0").toUpperCase()
+}
+
+def zwaveEvent(physicalgraph.zwave.commands.manufacturerspecificv2.ManufacturerSpecificReport cmd) {
+	def manufacturerCode = String.format("%04X", cmd.manufacturerId)
+	def productTypeCode = String.format("%04X", cmd.productTypeId)
+	def productCode = String.format("%04X", cmd.productId)
+	def msr = manufacturerCode + "-" + productTypeCode + "-" + productCode
+	updateDataValue("MSR", msr)
+	updateDataValue("Manufacturer", "Zooz")
+	updateDataValue("Manufacturer ID", manufacturerCode)
+	updateDataValue("Product Type", productTypeCode)
+	updateDataValue("Product Code", productCode)
+	createEvent([descriptionText: "$device.displayName MSR: $msr", isStateChange: false])
+}
