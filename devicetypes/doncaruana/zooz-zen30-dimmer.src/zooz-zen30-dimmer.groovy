@@ -3,6 +3,8 @@
  *
  * Revision History:
  * 2020-01-09 - Initial release
+ * 2020-01-10 - Fix for several parameters (wrong byte length), remove paddle inverse/toggle control (not in firmware this release)
+ * 2020-01-11 - Moved child tile above refresh, added preference to have paddle control relay simultaneously
  *
  * Notes:
  *		1) This device has 21 scene buttons. 
@@ -129,6 +131,7 @@ metadata {
 		input "zwaverampspeed", "number", title: "Zwave Ramp Rate", description: "Time in seconds or minutes to reach brightness setting (as set in Zwave Ramp Type)", required: false, defaultValue: 4, range: "1..127"
 		input "localControl", "enum", title: "Paddle Local Control", description: "Local paddle control enabled", options:["lcOn": "Local and Zwave On/Off enabled", "lcOff": "Disable local control", "lcAllOff": "Local and Zwave On/Off disabled"], defaultValue: "lcOn",displayDuringSetup: false
 		input "localControlRB", "enum", title: "Relay Local Control", description: "Local relay control enabled", options:["lcOnRB": "Local and Zwave On/Off enabled", "lcOffRB": "Disable local control", "lcAllOffRB": "Local and Zwave On/Off disabled"], defaultValue: "lcOnRB",displayDuringSetup: false
+		input "crossControl", "bool", title: "Allow paddle to control relay", description: "Allow paddle to control relay", required: false, defaultValue: false
 		input (
 					type: "paragraph",
 					element: "paragraph",
@@ -167,10 +170,10 @@ metadata {
 				attributeState "level", action:"switch level.setLevel"
 			}
 		}
-			standardTile("refresh", "device.switch", width: 2, height: 2, inactiveLabel: false, decoration: "flat") {
+		childDeviceTiles("all")
+		standardTile("refresh", "device.switch", width: 2, height: 2, inactiveLabel: false, decoration: "flat") {
 				state "default", label: '', action: "refresh.refresh", icon: "st.secondary.refresh"
 		}
-		childDeviceTiles("all")
 	}
 }
 
@@ -195,7 +198,7 @@ def installed() {
 			def matcher = (device.rawDescription =~ /epc:(\[.*?\])/)  // extract 'ep' field
 			endpointDescList = util.parseJson(matcher[0][1].replaceAll("'", '"'))
 		} catch (Exception e) {
-			log.warn "couldn't extract ep from rawDescription"
+			//log.warn "couldn't extract ep from rawDescription"
 		}
 	}
 
@@ -289,7 +292,6 @@ def zwaveEvent(physicalgraph.zwave.commands.basicv1.BasicReport cmd) {
 	}
 }
 
-
 private List loadEndpointInfo() {
 	if (state.endpointInfo) {
 		state.endpointInfo
@@ -363,10 +365,14 @@ def zwaveEvent(physicalgraph.zwave.commands.multichannelv3.MultiChannelCmdEncap 
 		if (childDevice) {
 			log.debug "Got $formatCmd for ${childDevice.name}"
 				if (formatCmd.indexOf('250300') > -1) {
-							childDevices[0].sendEvent(name:"switch", value:"off")
+					childDevices[0].sendEvent(name:"switch", value:"off")
+                    sendEvent(name: "relay", value: "off")
+                    state.relay = 0
 			} 
 				if (formatCmd.indexOf('2503FF') > -1) {
 					childDevices[0].sendEvent(name:"switch", value:"on")
+                    sendEvent(name: "relay", value: "on")
+                    state.relay = 1
 							}
 						}
 		}
@@ -404,17 +410,17 @@ def zwaveEvent(physicalgraph.zwave.Command cmd) {
 }
 
 def on() {
-// value of 255 restores previous brightness level
-	def level = 255
-	def dimmingDuration = state.dimDuration
-	delayBetween([
-			zwave.switchMultilevelV2.switchMultilevelSet(value: level, dimmingDuration: dimmingDuration).format(),
-			zwave.basicV1.basicGet().format()
-	],1000)
+	// value of 255 restores previous brightness level
+    if (crossControl) {relayOn()}
+    turnOnOffSwitch(255)
 }
 
 def off() {
-	def level = 0
+    if (crossControl) {relayOff()}
+    turnOnOffSwitch(0)
+}
+
+private turnOnOffSwitch(level) {
 	def dimmingDuration = state.dimDuration
 	delayBetween([
 			zwave.switchMultilevelV2.switchMultilevelSet(value: level, dimmingDuration: dimmingDuration).format(),
@@ -434,7 +440,6 @@ def refresh() {
 }
 
 def setLevel(value) {
-	log.debug "setLevel >> value: $value"
 	def valueaux = value as Integer
 	def level = Math.max(Math.min(valueaux, 99), 0)
 	if (level > 0) {
@@ -447,7 +452,6 @@ def setLevel(value) {
 }
 
 def setLevel(value, duration) {
-	log.debug "setLevel >> value: $value, duration: $duration"
 	def valueaux = value as Integer
 	def level = Math.max(Math.min(valueaux, 99), 0)
 	def dimmingDuration = duration < 128 ? duration : 128 + Math.round(duration / 60)
@@ -545,12 +549,20 @@ private encapWithDelay(commands, endpoint, delay=200) {
 	delayBetween(commands.collect{ encap(it, endpoint) }, delay)
 }
 
-def childOn(dni) {
+def relayOff() {
+	executeChildOnOff(0x00, 1)
+}
+
+def relayOn() {
 	executeChildOnOff(0xFF, 1)
 }
 
+def childOn(dni) {
+	relayOn()
+}
+
 def childOff(dni) {
-	executeChildOnOff(0x00, 1)
+	relayOff()
 }
 
 private executeChildOnOff(value, endpoint) {
@@ -626,6 +638,11 @@ def zwaveEvent(physicalgraph.zwave.commands.centralscenev1.CentralSceneNotificat
 				case 0:
 					// Press Once
 					result += createEvent(tapUp1Response("physical"))
+                    if (crossControl) {
+                    	if (paddleControl == "toggle" && state.relay == 1) {
+                        	relayOff()}
+                        else {relayOn()}
+                    }
 					break
 				case 1:
 					// release after hold
@@ -661,6 +678,11 @@ def zwaveEvent(physicalgraph.zwave.commands.centralscenev1.CentralSceneNotificat
 				case 0:
 					// Press Once
 					result += createEvent(tapDown1Response("physical"))
+                    if (crossControl) {
+                    	if (paddleControl == "toggle" && state.relay == 0) {
+                        	relayOn()}
+                        else {relayOff()}
+                    }
 					break
 				case 1:
 					// release after hold
@@ -1337,21 +1359,21 @@ def updated(){
     
 	def setLedIndicator = 0
 	def setLedIndicatorRB = 0
-//	def setPaddleControl = 0
-//	switch (paddleControl) {
-//		case "std":
-//			setPaddleControl = 0
-//			break
-//		case "invert":
-//			setPaddleControl = 1
-//			break
-//		case "toggle":
-//			setPaddleControl = 2
-//			break
-//		default:
-//			setPaddleControl = 0
-//			break
-//	}
+	def setPaddleControl = 0
+	switch (paddleControl) {
+		case "std":
+			setPaddleControl = 0
+			break
+		case "invert":
+			setPaddleControl = 1
+			break
+		case "toggle":
+			setPaddleControl = 2
+			break
+		default:
+			setPaddleControl = 0
+			break
+	}
 
 	def setLedColor = 0
     switch (ledColor) {
@@ -1474,7 +1496,6 @@ def updated(){
 			break
 	}
 	
-	
 	if (settings.requestedGroup2 != state.currentGroup2) {
 		nodes = parseAssocGroupList(settings.requestedGroup2, 2)
 		commands << zwave.associationV2.associationRemove(groupingIdentifier: 2, nodeId: []).format()
@@ -1587,6 +1608,7 @@ def zwaveEvent(physicalgraph.zwave.commands.manufacturerspecificv2.ManufacturerS
 	def productTypeCode = String.format("%04X", cmd.productTypeId)
 	def productCode = String.format("%04X", cmd.productId)
 	def msr = manufacturerCode + "-" + productTypeCode + "-" + productCode
+    log.debug "getting msr"
 	updateDataValue("MSR", msr)
 	updateDataValue("Manufacturer", "Zooz")
 	updateDataValue("Manufacturer ID", manufacturerCode)
