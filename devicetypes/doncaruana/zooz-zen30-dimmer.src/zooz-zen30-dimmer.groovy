@@ -5,6 +5,7 @@
  * 2020-01-09 - Initial release
  * 2020-01-10 - Fix for several parameters (wrong byte length), remove paddle inverse/toggle control (not in firmware this release)
  * 2020-01-11 - Moved child tile above refresh, added preference to have paddle control relay simultaneously
+ * 2020-02-03 - Fix for zero value in ramp rate 
  *
  * Notes:
  *		1) This device has 21 scene buttons. 
@@ -47,7 +48,7 @@
  *     11    4 Turn-on Timer for Relay                       0 (Default)-Time in minutes after turning off to automatically turn on, 0 disabled, (1-65535 minutes)
  *     12    1 Power Restore                                 0-both off, 1-dimmer on/relay off, 2-dimmer on/relay off, 3 (Default)-both Remember state from pre-power failure,
  * 																4-remember dimmer/relay on, 5-remember dimmer/relay off, 6-dimmer on/remember relay, 7-dimmer off/remember relay, 8-both on
- *     13    1 Physical Ramp Rate Control                    0 (Default)-Ramp rate in seconds to reach full brightness or off (1-99 seconds)
+ *     13    1 Physical Ramp Rate Control                    1 (Default)-Ramp rate in seconds to reach full brightness or off (1-99 seconds)
  *     14    1 Minimum Brightness                            1 (Default)-Minimum brightness that light will set (1-99%)
  *     15    1 Maximum Brightness                            99 (Default)-Maximum brightness that light will set (1-99%)
  *     17    1 Double Tap                                    0 (Default)-Light will go to full brightness with double tap, 1-light will go to max set in Parameter 11 with double tap
@@ -1272,7 +1273,7 @@ def updated(){
 	def setOnTimerRB = 0
 	if (onTimerRB) {setOnTimerRB = onTimerRB}
 	def setRampRate = 1
-	if (rampRate) {setRampRate = rampRate}
+	if (rampRate!=null) {setRampRate = rampRate}
 	def setMaxBright = 99
 	if (maxBright) {setMaxBright = maxBright}
 	def setMinBright = 1
