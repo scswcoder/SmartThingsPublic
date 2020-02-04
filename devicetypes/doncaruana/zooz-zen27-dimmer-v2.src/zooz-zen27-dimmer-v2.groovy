@@ -8,6 +8,7 @@
  * 2019-09-07 - Fix typo in auto turn off timer parameter setting
  * 2019-11-16 - Updated with latest device parameters, changed handling of double tap
  * 2019-12-10 - Clean up, fix for single tap scene control
+ * 2020-02-03 - Fix for zero value in ramp rate
  *
  *  Supported Command Classes
  *         Association v2
@@ -31,7 +32,7 @@
  *      5    1 Auto Turn-On                                  0 (Default)-Timer disabled, 1-Timer enabled; Set time in parameter 6
  *      6    4 Turn-on Timer                                 60 (Default)-Time in minutes after turning off to automatically turn on (1-65535 minutes)
  *      8    1 Power Restore                                 2 (Default)-Remember state from pre-power failure, 0-Off after power restored, 1-On after power restore
- *      9    1 Physical Ramp Rate Control                    0 (Default)-Ramp rate in seconds to reach full brightness or off (1-99 seconds)
+ *      9    1 Physical Ramp Rate Control                    1 (Default)-Ramp rate in seconds to reach full brightness or off (1-99 seconds)
  *     10    1 Minimum Brightness                            1 (Default)-Minimum brightness that light will set (1-99%)
  *     11    1 Maximum Brightness                            99 (Default)-Maximum brightness that light will set (1-99%)
  *     12    1 Double Tap                                    0 (Default)-Light will go to full brightness with double tap, 1-light will go to max set in Parameter 11 with double tap
@@ -201,7 +202,7 @@ def updated(){
 	def setOnTimer = 60
 	if (onTimer) {setOnTimer = onTimer}
 	def setRampRate = 1
-	if (rampRate) {setRampRate = rampRate}
+	if (rampRate!=null) {setRampRate = rampRate}
 	def setMaxBright = 99
 	if (maxBright) {setMaxBright = maxBright}
 	def setMinBright = 1
