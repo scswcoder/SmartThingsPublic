@@ -33,7 +33,7 @@
  *      5    1 Auto Turn-On                                  0 (Default)-Timer disabled, 1-Timer enabled; Set time in parameter 6
  *      6    4 Turn-on Timer                                 60 (Default)-Time in minutes after turning off to automatically turn on (1-65535 minutes)
  *      8    1 Power Restore                                 2 (Default)-Remember state from pre-power failure, 0-Off after power restored, 1-On after power restore
- *      9    1 Physical Ramp Rate Control                    1 (Default)-Ramp rate in seconds to reach full brightness or off (1-99 seconds)
+ *      9    1 Physical Ramp Rate Control                    1 (Default)-Ramp rate in seconds to reach full brightness or off (0-99 seconds)
  *     10    1 Minimum Brightness                            1 (Default)-Minimum brightness that light will set (1-99%)
  *     11    1 Maximum Brightness                            99 (Default)-Maximum brightness that light will set (1-99%)
  *     12    1 Double Tap                                    0 (Default)-Light will go to full brightness with double tap, 1-light will go to max set in Parameter 11 with double tap
@@ -68,7 +68,6 @@ metadata {
 			command "tapUp5"
 
 
- //zw:L type:1101 mfr:027A prod:A000 model:A002 ver:2.00 zwv:5.03 lib:03 cc:5E,26,85,8E,59,55,86,72,5A,73,70,5B,9F,6C,7A role:05 ff:8600 ui:8604
  //zw:L type:1101 mfr:027A prod:A000 model:A002 ver:2.01 zwv:5.03 lib:03 cc:5E,26,85,8E,59,55,86,72,5A,73,70,5B,9F,6C,7A role:05 ff:8600 ui:8604
 
 	fingerprint mfr:"027A", prod:"A000", model:"A002", deviceJoinName: "Zooz Zen27 Dimmer v2"
