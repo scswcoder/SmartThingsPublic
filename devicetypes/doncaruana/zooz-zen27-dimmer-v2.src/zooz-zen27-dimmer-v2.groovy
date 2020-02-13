@@ -9,6 +9,7 @@
  * 2019-11-16 - Updated with latest device parameters, changed handling of double tap
  * 2019-12-10 - Clean up, fix for single tap scene control
  * 2020-02-03 - Fix for zero value in ramp rate
+ * 2020-02-13 - Fix for double tap settings
  *
  *  Supported Command Classes
  *         Association v2
@@ -229,11 +230,11 @@ def updated(){
 			setDoubleTap = 1
 			setDtapDisable = 0
 			break
-		case "tap2max":
+		case "tap1last":
 			setDoubleTap = 0
 			setDtapDisable = 1
 			break
-		case "tap1last":
+		case "tap1max":
 			setDoubleTap = 0
 			setDtapDisable = 2
 			break
